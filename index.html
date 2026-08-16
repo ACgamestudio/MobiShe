@@ -491,9 +491,9 @@ function pickMat(itemId,style){
 }
 
 const STARTER_PROJECTS = [
-  {id:"p1",name:"Cozinha Alpendre",room:"cozinha",w:320,d:280,h:270,style:"Moderno",fav:true,objects:seedFrom("cozinha","Moderno"),matDefault:"preto"},
-  {id:"p2",name:"Suíte Cliente Marina",room:"quarto",w:400,d:360,h:280,style:"Aconchegante",fav:false,objects:seedFrom("quarto","Aconchegante"),matDefault:"nogueira"},
-  {id:"p3",name:"Home Office 03",room:"escritorio",w:300,d:260,h:270,style:"Minimalista",fav:false,objects:seedFrom("escritorio","Minimalista"),matDefault:"cinza"},
+  {id:"p1",name:"Cozinha Alpendre",room:"cozinha",w:320,d:280,h:270,style:"Moderno",fav:true,objects:seedFrom("cozinha","Moderno"),matDefault:"preto",openings:[{id:"w1",wall:"back",pos:220,width:120,height:120,sill:100,type:"janela"}]},
+  {id:"p2",name:"Suíte Cliente Marina",room:"quarto",w:400,d:360,h:280,style:"Aconchegante",fav:false,objects:seedFrom("quarto","Aconchegante"),matDefault:"nogueira",openings:[{id:"w2",wall:"left",pos:100,width:90,height:210,sill:0,type:"porta"}]},
+  {id:"p3",name:"Home Office 03",room:"escritorio",w:300,d:260,h:270,style:"Minimalista",fav:false,objects:seedFrom("escritorio","Minimalista"),matDefault:"cinza",openings:[]},
 ];
 function seedFrom(room,style){
   return (QUICK_LAYOUTS[room]||[]).map((q,i)=>{
@@ -522,7 +522,10 @@ let STATE = {
   history:[], future:[],
   camPreset:"orbit",
   mobilePanel:null,
+  wallTool:null,
+  selectedOpening:null,
 };
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const PRICE = { mdfM2:220, hinge:18, slide:45, handle:12, stoneM2:680 };
 
 /* ============================================================
@@ -787,7 +790,7 @@ function wizFinish(){
       doors:it.doors,drawers:it.drawers,mat:pickMat(q.item,wizard.style),handle:"perfil"};
   });
   const pr={id:"p"+Date.now(),name:wizard.name.trim(),room:wizard.room,w:wizard.w,d:wizard.d,h:wizard.h,
-    style:wizard.style,fav:false,objects:objs,matDefault:(STYLE_PALETTES[wizard.style]||STYLE_PALETTES.Moderno).base};
+    style:wizard.style,fav:false,objects:objs,matDefault:(STYLE_PALETTES[wizard.style]||STYLE_PALETTES.Moderno).base,openings:[]};
   STATE.projects.unshift(pr);closeOverlays();openProject(pr.id);toast("Ambiente criado");
 }
 function matForStyle(s){return {Moderno:"branco",Minimalista:"cinza",Aconchegante:"carv",Industrial:"preto"}[s]||"branco";}
@@ -838,7 +841,7 @@ function aiGenerate(){
   if(/ilha/.test(txt)&&!objs.find(o=>o.item==="ilha")){const it=findItem("ilha");
     objs.push({uid:uid(),item:"ilha",x:0,z:-20,y:0,rot:0,w:it.w,h:it.h,d:it.d,doors:it.doors,drawers:it.drawers,mat:"granito",handle:"perfil"});}
   const pr={id:"p"+Date.now(),name:"Projeto IA · "+roomName(room),room,w:340,d:300,h:270,
-    style:"Moderno",fav:false,objects:objs,matDefault:matKeyword||STYLE_PALETTES.Moderno.base};
+    style:"Moderno",fav:false,objects:objs,matDefault:matKeyword||STYLE_PALETTES.Moderno.base,openings:[]};
   STATE.projects.unshift(pr);closeOverlays();openProject(pr.id);
   toast("IA gerou um layout — edite à vontade");
 }
@@ -887,6 +890,7 @@ function renderEditor(){
       <aside class="left" id="left-panel">
         <div class="left-tabs">
           <button class="${STATE.leftTab==='furniture'?'on':''}" onclick="setLeftTab('furniture')"><span class="lt-ico">${ICO.chair}</span>Móveis</button>
+          <button class="${STATE.leftTab==='walls'?'on':''}" onclick="setLeftTab('walls')"><span class="lt-ico">${ICO.door}</span>Paredes</button>
           <button class="${STATE.leftTab==='materials'?'on':''}" onclick="setLeftTab('materials')"><span class="lt-ico">${ICO.swatch}</span>Materiais</button>
           <button class="${STATE.leftTab==='deco'?'on':''}" onclick="setLeftTab('deco')"><span class="lt-ico">${ICO.plant}</span>Decoração</button>
         </div>
@@ -940,12 +944,14 @@ function renderEditor(){
 }
 
 /* ---- left panel ---- */
-function setLeftTab(t){STATE.leftTab=t;$$(".left-tabs button").forEach((b,i)=>b.classList.toggle("on",["furniture","materials","deco"][i]===t));renderLeft();}
+function setLeftTab(t){STATE.leftTab=t;$$(".left-tabs button").forEach((b,i)=>b.classList.toggle("on",["furniture","walls","materials","deco"][i]===t));renderLeft();}
 function renderLeft(){
   const c=$("#left-content");if(!c)return;
   if(STATE.leftTab==="furniture"){
     c.innerHTML=`<input class="search" placeholder="Buscar módulo..." oninput="filterFurn(this.value)">
       <div id="furn-cats">${furnCatsHTML("")}</div>`;
+  }else if(STATE.leftTab==="walls"){
+    c.innerHTML=wallsPanelHTML();
   }else if(STATE.leftTab==="materials"){
     const filters=["todos","amadeirado","liso","colorido","pedra","vidro"];
     c.innerHTML=`<div class="cat-title">Filtrar acabamento</div>
@@ -970,6 +976,113 @@ function furnCatsHTML(q){
   }).join("");
 }
 function filterFurn(v){$("#furn-cats").innerHTML=furnCatsHTML(v);setupDragItems();}
+
+/* ---- paredes: portas e janelas ---- */
+const WALL_LABEL={back:"Parede de fundo",left:"Parede esquerda"};
+function wallLen(wall,p){p=p||STATE.current;return wall==="back"?p.w:p.d;}
+function wallsPanelHTML(){
+  const p=STATE.current;const ops=p.openings||[];
+  const tool=STATE.wallTool;
+  return `
+    <div class="cat-title">Adicionar abertura</div>
+    <div class="style-row" style="margin-bottom:10px;gap:8px">
+      <button class="chip ${tool==='porta'?'on':''}" style="padding:8px 14px;font-size:13px" onclick="setWallTool('porta')">${ICO.door}<span style="margin-left:6px">Porta</span></button>
+      <button class="chip ${tool==='janela'?'on':''}" style="padding:8px 14px;font-size:13px" onclick="setWallTool('janela')">${ICO.window}<span style="margin-left:6px">Janela</span></button>
+    </div>
+    <p style="font-size:12px;color:var(--ink-3);line-height:1.5;margin-bottom:16px">
+      ${tool?`Modo ativo: toque na <b>parede de fundo</b> ou na <b>parede esquerda</b> na planta 2D para posicionar a ${tool}.`:
+      `Escolha porta ou janela e toque em uma parede na planta 2D (fundo ou esquerda — são as paredes visíveis em 3D). Toque em uma abertura existente para editar ou mover.`}
+    </p>
+    <div class="cat-title">Aberturas nesta planta (${ops.length})</div>
+    ${ops.length===0?`<div class="deco-note" style="font-size:12px">Nenhuma porta ou janela ainda.</div>`:
+    `<div class="furn-grid" style="grid-template-columns:1fr">${ops.map(o=>`
+      <div class="furn-item" style="justify-content:space-between;flex-direction:row;align-items:center;cursor:pointer;${o.id===STATE.selectedOpening?'outline:2px solid var(--accent)':''}" onclick="selectOpening('${o.id}')">
+        <span style="display:flex;align-items:center;gap:8px"><span class="fico">${o.type==='porta'?ICO.door:ICO.window}</span>${o.type==='porta'?'Porta':'Janela'} · ${WALL_LABEL[o.wall]} · ${(o.width/100).toFixed(2)}m</span>
+      </div>`).join("")}</div>`}
+  `;
+}
+function setWallTool(t){STATE.wallTool=STATE.wallTool===t?null:t;STATE.selectedOpening=null;STATE.selected=null;renderLeft();renderRight();draw2D();
+  toast(STATE.wallTool?"Toque em uma parede (fundo ou esquerda) para adicionar":"Modo de adicionar abertura desativado");}
+function wallScreenSeg(wall){
+  const p=STATE.current;const [rx,ry]=w2s(-p.w/2,-p.d/2);const rw=p.w*cam2.scale,rh=p.d*cam2.scale;
+  if(wall==="back")return{x1:rx,y1:ry,x2:rx+rw,y2:ry,axis:"x",len:p.w};
+  return{x1:rx,y1:ry,x2:rx,y2:ry+rh,axis:"y",len:p.d};
+}
+function hitOpening2D(px,py){
+  const p=STATE.current;const thresh=11;
+  const list=p.openings||[];
+  for(let i=list.length-1;i>=0;i--){
+    const o=list[i];const seg=wallScreenSeg(o.wall);const half=o.width/2*cam2.scale;
+    if(seg.axis==="x"){const cx=seg.x1+o.pos*cam2.scale;
+      if(Math.abs(py-seg.y1)<=thresh+8&&px>=cx-half-thresh&&px<=cx+half+thresh)return o;}
+    else{const cy=seg.y1+o.pos*cam2.scale;
+      if(Math.abs(px-seg.x1)<=thresh+8&&py>=cy-half-thresh&&py<=cy+half+thresh)return o;}
+  }
+  return null;
+}
+function hitWall2D(px,py){
+  const thresh=14;
+  for(const wall of["back","left"]){
+    const seg=wallScreenSeg(wall);
+    if(seg.axis==="x"){
+      if(Math.abs(py-seg.y1)<=thresh&&px>=seg.x1-thresh&&px<=seg.x2+thresh)
+        return{wall,pos:clamp((px-seg.x1)/cam2.scale,0,seg.len)};
+    }else{
+      if(Math.abs(px-seg.x1)<=thresh&&py>=seg.y1-thresh&&py<=seg.y2+thresh)
+        return{wall,pos:clamp((py-seg.y1)/cam2.scale,0,seg.len)};
+    }
+  }
+  return null;
+}
+function drawOpening2D(o,seg){
+  const scale=cam2.scale;const r=o.width*scale;
+  let hx,hy,x1,y1,x2,y2;
+  if(seg.axis==="x"){const cx=seg.x1+o.pos*scale,y=seg.y1;x1=cx-r/2;x2=cx+r/2;y1=y2=y;hx=x1;hy=y;}
+  else{const cy=seg.y1+o.pos*scale,x=seg.x1;y1=cy-r/2;y2=cy+r/2;x1=x2=x;hx=x;hy=y1;}
+  ctx.strokeStyle="#12151b";ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  const sel=o.id===STATE.selectedOpening;
+  const col=sel?"#f0653a":"#dfe3ea";
+  ctx.globalAlpha=.92;ctx.strokeStyle=col;ctx.lineWidth=sel?2.4:1.5;
+  if(o.type==="porta"){
+    ctx.beginPath();ctx.arc(hx,hy,r,0,Math.PI/2);ctx.stroke();
+    ctx.beginPath();
+    if(seg.axis==="x"){ctx.moveTo(hx,hy);ctx.lineTo(hx,hy+r);}else{ctx.moveTo(hx,hy);ctx.lineTo(hx+r,hy);}
+    ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  }else{
+    const off=3;ctx.beginPath();
+    if(seg.axis==="x"){ctx.moveTo(x1,y1-off);ctx.lineTo(x2,y2-off);ctx.moveTo(x1,y1+off);ctx.lineTo(x2,y2+off);}
+    else{ctx.moveTo(x1-off,y1);ctx.lineTo(x2-off,y2);ctx.moveTo(x1+off,y1);ctx.lineTo(x2+off,y2);}
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+function addOpening(wall,pos){
+  const type=STATE.wallTool;if(!type)return;
+  const p=STATE.current;const len=wallLen(wall,p);
+  const isDoor=type==="porta";
+  const width=isDoor?80:120,height=isDoor?210:120,sill=isDoor?0:100;
+  if(len<width+10){toast("Parede muito curta para essa abertura");return;}
+  const center=Math.round(clamp(pos,width/2+5,len-width/2-5));
+  snapshot();
+  if(!p.openings)p.openings=[];
+  const op={id:uid(),wall,pos:center,width,height,sill,type};
+  p.openings.push(op);
+  STATE.selectedOpening=op.id;STATE.selected=null;STATE.wallTool=null;
+  refreshEditor();renderRight();renderLeft();
+  toast((isDoor?"Porta":"Janela")+" adicionada");
+}
+function selectOpening(id){STATE.selectedOpening=id;STATE.selected=null;STATE.wallTool=null;draw2D();renderRight();renderLeft();}
+function getSelOpening(){return(STATE.current.openings||[]).find(o=>o.id===STATE.selectedOpening);}
+function setOpeningProp(k,v){const o=getSelOpening();if(!o)return;snapshot();
+  if(k==="type"){o.type=v;if(v==="porta"){o.sill=0;if(o.height>230)o.height=210;}else{if(!o.sill)o.sill=100;}}
+  else if(k==="wall"){o.wall=v;const len=wallLen(v);o.pos=clamp(o.pos,o.width/2,len-o.width/2);}
+  else o[k]=+v;
+  const len=wallLen(o.wall);o.pos=clamp(o.pos,o.width/2,len-o.width/2);
+  refreshEditor();renderRight();renderLeft();}
+function deleteOpening(){const o=getSelOpening();if(!o)return;snapshot();
+  STATE.current.openings=STATE.current.openings.filter(x=>x.id!==o.id);
+  STATE.selectedOpening=null;refreshEditor();renderRight();renderLeft();toast("Abertura removida");}
 function setMatFilter(f){STATE.matFilter=f;renderLeft();}
 function applyMat(mid){
   if(!STATE.selected){STATE.current.matDefault=mid;toast("Material padrão: "+findMat(mid).n);renderLeft();return;}
@@ -1033,6 +1146,7 @@ function addFurniture(itemId,at){
   const o={uid:uid(),item:itemId,x:at?at.x:0,z:at?at.z:0,y:(at&&at.y!==undefined)?at.y:(it.defY||0),rot:0,w:it.w,h:it.h,d:it.d,
     doors:it.doors,drawers:it.drawers,mat:it.stone?"granito":STATE.current.matDefault,handle:"perfil"};
   if(isCollidable(o))findFreeSpot(o,o.x,o.z);
+  faceCenter(o);
   STATE.current.objects.push(o);STATE.selected=o.uid;
   refreshEditor();renderRight();
   toast(isCollidable(o)&&(o.x!==(at?at.x:0)||o.z!==(at?at.z:0))?it.n+" adicionado (reposicionado para não sobrepor)":it.n+" adicionado");
@@ -1042,11 +1156,42 @@ function selectObj(uid){STATE.selected=uid;refreshEditor();renderRight();}
 /* ---- right panel ---- */
 function renderRight(){
   const b=$("#right-body");if(!b)return;
+  const op=getSelOpening();
+  if(op){
+    $("#rp-title").textContent=op.type==="porta"?"Porta":"Janela";
+    $("#rp-sub").textContent=WALL_LABEL[op.wall];
+    const len=wallLen(op.wall);
+    b.innerHTML=`
+      <div class="prop-group"><div class="prop-group-t">Tipo</div>
+        <div class="style-row" style="gap:8px">
+          <button class="chip ${op.type==='porta'?'on':''}" style="padding:8px 14px;font-size:13px" onclick="setOpeningProp('type','porta')">${ICO.door}<span style="margin-left:6px">Porta</span></button>
+          <button class="chip ${op.type==='janela'?'on':''}" style="padding:8px 14px;font-size:13px" onclick="setOpeningProp('type','janela')">${ICO.window}<span style="margin-left:6px">Janela</span></button>
+        </div>
+      </div>
+      <div class="prop-group"><div class="prop-group-t">Medidas (cm)</div>
+        <div class="prop-row"><label>Largura</label><input type="number" value="${op.width}" onchange="setOpeningProp('width',this.value)"></div>
+        <div class="prop-row"><label>Altura</label><input type="number" value="${op.height}" onchange="setOpeningProp('height',this.value)"></div>
+        ${op.type==="janela"?`<div class="prop-row"><label>Peitoril</label><input type="number" value="${op.sill}" onchange="setOpeningProp('sill',this.value)"></div>`:""}
+        <div class="prop-row"><label>Posição</label><input type="number" min="0" max="${len}" value="${op.pos}" onchange="setOpeningProp('pos',this.value)"></div>
+      </div>
+      <div class="prop-group"><div class="prop-group-t">Parede</div>
+        <div class="prop-row"><label>Localização</label>
+          <select onchange="setOpeningProp('wall',this.value)">
+            <option value="back" ${op.wall==='back'?'selected':''}>Parede de fundo</option>
+            <option value="left" ${op.wall==='left'?'selected':''}>Parede esquerda</option>
+          </select></div>
+      </div>
+      <div class="prop-group"><div class="prop-group-t">Ações</div>
+        <div class="obj-actions"><button class="danger" onclick="deleteOpening()">${ICO.trash} Excluir</button></div>
+      </div>`;
+    return;
+  }
   const o=getSel();
   if(!o){
     $("#rp-title").textContent="Ambiente";
     $("#rp-sub").textContent=roomName(STATE.current.room);
     const p=STATE.current;
+    const nOp=(p.openings||[]).length;
     b.innerHTML=`
       <div class="prop-group"><div class="prop-group-t">Medidas do ambiente</div>
         <div class="prop-row"><label>Largura</label><input type="number" value="${p.w}" onchange="setRoom('w',this.value)"></div>
@@ -1054,7 +1199,11 @@ function renderRight(){
         <div class="prop-row"><label>Pé-direito</label><input type="number" value="${p.h}" onchange="setRoom('h',this.value)"></div>
       </div>
       <div class="prop-group"><div class="prop-group-t">Aberturas</div>
-        <p style="font-size:12px;color:var(--ink-3);line-height:1.5">Portas e janelas aparecem na planta 2D. Toque em uma parede no modo 2D para adicioná-las (em breve).</p>
+        <p style="font-size:12px;color:var(--ink-3);line-height:1.5">${nOp?nOp+" abertura(s) nesta planta. Toque em uma delas na planta 2D para editar, ou use a aba":"Use a aba"} <b>Paredes</b> para adicionar portas e janelas.</p>
+      </div>
+      <div class="prop-group"><div class="prop-group-t">Módulos</div>
+        <p style="font-size:12px;color:var(--ink-3);line-height:1.5;margin-bottom:10px">Reorienta todos os módulos para que a frente (portas/puxadores) fique voltada para o centro do ambiente.</p>
+        <div class="obj-actions"><button onclick="faceAllCenter()">${ICO.center} Virar tudo p/ centro</button></div>
       </div>
       <div class="prop-empty" style="padding:24px 8px"><span class="pi">${ICO.cursor}</span>Selecione um móvel para editar dimensões, materiais e ferragens.</div>`;
     return;
@@ -1087,6 +1236,7 @@ function renderRight(){
       <div class="obj-actions">
         <button onclick="duplicateObj()">${ICO.copy} Duplicar</button>
         <button onclick="rotate(90)">${ICO.rotate} Girar 90°</button>
+        <button onclick="faceCenterSel()">${ICO.center} Virar p/ centro</button>
         <button onclick="centerObj()">${ICO.center} Centralizar</button>
         <button class="danger" onclick="deleteObj()">${ICO.trash} Excluir</button>
       </div>
@@ -1097,6 +1247,21 @@ function setProp(k,v){snapshot();const o=getSel();o[k]=(k==="handle")?v:+v;refre
 function stepProp(k,d){snapshot();const o=getSel();o[k]=Math.max(0,o[k]+d);refreshEditor();renderRight();}
 function setMatSel(mid){snapshot();getSel().mat=mid;refreshEditor();renderRight();}
 function rotate(d){snapshot();const o=getSel();o.rot=(o.rot+d)%360;if(o.rot<0)o.rot+=360;refreshEditor();renderRight();}
+/* orienta a frente (portas/puxadores) do módulo para o centro do ambiente (0,0),
+   sempre encaixado no eixo mais próximo (0/90/180/270) para ficar reto contra a parede */
+function faceCenter(o){
+  const deg=Math.atan2(o.x,-o.z)*180/Math.PI;
+  let snapped=Math.round(deg/90)*90;
+  snapped=((snapped%360)+360)%360;
+  o.rot=snapped;
+}
+function faceCenterSel(){snapshot();faceCenter(getSel());refreshEditor();renderRight();}
+function faceAllCenter(){
+  if(!STATE.current.objects.length){toast("Nenhum módulo no ambiente");return;}
+  snapshot();
+  STATE.current.objects.forEach(o=>faceCenter(o));
+  refreshEditor();renderRight();toast("Módulos virados para o centro");
+}
 function duplicateObj(){snapshot();const o=getSel();const n={...o,uid:uid(),x:o.x+30,z:o.z+30};
   if(isCollidable(n))findFreeSpot(n,n.x,n.z);
   STATE.current.objects.push(n);STATE.selected=n.uid;refreshEditor();renderRight();toast("Objeto duplicado");}
@@ -1143,7 +1308,7 @@ function toggleMobile(side){
 /* ============================================================
    2D CANVAS
    ============================================================ */
-let c2d,ctx,cam2={scale:1,ox:0,oy:0},drag2=null,pan2=null;
+let c2d,ctx,cam2={scale:1,ox:0,oy:0},drag2=null,pan2=null,dragOpening=null;
 function init2D(){
   c2d=$("#stage2d");ctx=c2d.getContext("2d");
   resize2D();camReset2();
@@ -1183,6 +1348,11 @@ function draw2D(){
   ctx.fillStyle="#6b7385";ctx.font="600 12px Inter";ctx.textAlign="center";
   ctx.fillText((p.w/100).toFixed(2)+" m",rx+rw/2,ry-12);
   ctx.save();ctx.translate(rx-14,ry+rh/2);ctx.rotate(-Math.PI/2);ctx.fillText((p.d/100).toFixed(2)+" m",0,0);ctx.restore();
+  // openings (doors/windows) on back + left walls
+  (p.openings||[]).forEach(o=>{
+    if(o.wall!=="back"&&o.wall!=="left")return;
+    drawOpening2D(o,wallScreenSeg(o.wall));
+  });
   // objects
   p.objects.forEach(o=>{
     const [ox,oy]=w2s(o.x,o.z);const ow=o.w*cam2.scale,oh=o.d*cam2.scale;
@@ -1211,10 +1381,22 @@ function hit2D(px,py){
     if(Math.abs(lx)<=o.w*cam2.scale/2&&Math.abs(ly)<=o.d*cam2.scale/2)return o;}
   return null;
 }
-function on2Down(e){c2d.setPointerCapture(e.pointerId);const o=hit2D(e.offsetX,e.offsetY);
-  if(o){STATE.selected=o.uid;const[ow,oz]=s2w(e.offsetX,e.offsetY);drag2={o,dx:ow-o.x,dz:oz-o.z,moved:false};snapshot();renderRight();draw2D();}
-  else{STATE.selected=null;pan2={x:e.offsetX,y:e.offsetY,ox:cam2.ox,oy:cam2.oy};renderRight();draw2D();}}
+function on2Down(e){c2d.setPointerCapture(e.pointerId);
+  const opHit=hitOpening2D(e.offsetX,e.offsetY);
+  if(opHit){STATE.selectedOpening=opHit.id;STATE.selected=null;STATE.wallTool=null;
+    dragOpening={op:opHit,moved:false};snapshot();renderRight();renderLeft();draw2D();return;}
+  if(STATE.wallTool){const wHit=hitWall2D(e.offsetX,e.offsetY);
+    if(wHit){addOpening(wHit.wall,wHit.pos);return;}}
+  const o=hit2D(e.offsetX,e.offsetY);
+  if(o){STATE.selected=o.uid;STATE.selectedOpening=null;const[ow,oz]=s2w(e.offsetX,e.offsetY);drag2={o,dx:ow-o.x,dz:oz-o.z,moved:false};snapshot();renderRight();draw2D();}
+  else{STATE.selected=null;STATE.selectedOpening=null;pan2={x:e.offsetX,y:e.offsetY,ox:cam2.ox,oy:cam2.oy};renderRight();draw2D();}}
 function on2Move(e){
+  if(dragOpening){
+    const seg=wallScreenSeg(dragOpening.op.wall);const len=wallLen(dragOpening.op.wall);
+    let pos=seg.axis==="x"?(e.offsetX-seg.x1)/cam2.scale:(e.offsetY-seg.y1)/cam2.scale;
+    dragOpening.op.pos=Math.round(clamp(pos,dragOpening.op.width/2,len-dragOpening.op.width/2));
+    dragOpening.moved=true;draw2D();return;
+  }
   if(drag2){
     const[wx,wz]=s2w(e.offsetX,e.offsetY);
     const prevX=drag2.o.x,prevZ=drag2.o.z;
@@ -1224,12 +1406,14 @@ function on2Move(e){
     draw2D();
   }
   else if(pan2){cam2.ox=pan2.ox+(e.offsetX-pan2.x);cam2.oy=pan2.oy+(e.offsetY-pan2.y);draw2D();}}
-function on2Up(e){if(drag2&&drag2.moved){refreshEditor();renderRight();}else if(drag2){STATE.history.pop();}drag2=null;pan2=null;}
+function on2Up(e){
+  if(dragOpening){if(dragOpening.moved){refreshEditor();renderRight();}else{STATE.history.pop();}dragOpening=null;return;}
+  if(drag2&&drag2.moved){refreshEditor();renderRight();}else if(drag2){STATE.history.pop();}drag2=null;pan2=null;}
 
 /* ============================================================
    3D SCENE (Three.js)
    ============================================================ */
-let R={scene:null,cam:null,rn:null,raf:null,meshes:{},room:null,ground:null,orbit:false};
+let R={scene:null,cam:null,rn:null,raf:null,meshes:{},room:null,ground:null,orbit:false,selectionHelper:null};
 let orbitState={theta:0.9,phi:1.0,dist:600,target:{x:0,y:80,z:0},dragging:false,px:0,py:0,mode:null};
 function init3D(){
   const cv=$("#stage3d");if(!cv)return;
@@ -1270,6 +1454,21 @@ function init3D(){
   cancelAnimationFrame(R.raf);loop3D();
   window.addEventListener("resize",resize3D);
 }
+function wallOpeningsSorted(wall){return(STATE.current.openings||[]).filter(o=>o.wall===wall).sort((a,b)=>a.pos-b.pos);}
+function wallSegments3D(wall,lenAxis,height){
+  const segs=[];let cursor=0;
+  wallOpeningsSorted(wall).forEach(o=>{
+    const a=Math.max(0,o.pos-o.width/2),b=Math.min(lenAxis,o.pos+o.width/2);
+    if(b<=cursor)return;
+    if(a>cursor)segs.push({from:cursor,to:a,yFrom:0,yTo:height});
+    const topY=o.type==="janela"?(o.sill||0)+o.height:o.height;
+    if(topY<height-0.5)segs.push({from:a,to:b,yFrom:topY,yTo:height});
+    if(o.type==="janela"&&(o.sill||0)>0.5)segs.push({from:a,to:b,yFrom:0,yTo:o.sill});
+    cursor=Math.max(cursor,b);
+  });
+  if(cursor<lenAxis-0.5)segs.push({from:cursor,to:lenAxis,yFrom:0,yTo:height});
+  return segs;
+}
 function buildRoom3D(){
   const p=STATE.current;
   if(R.room)R.scene.remove(R.room);
@@ -1277,12 +1476,29 @@ function buildRoom3D(){
   const floorMat=new THREE.MeshStandardMaterial({color:0x1a1d24,roughness:.9});
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.d),floorMat);
   floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;R.room.add(floor);
-  // walls (back + left) semi-transparent
+  // walls (back + left) semi-transparent, split around door/window openings
   const wallMat=new THREE.MeshStandardMaterial({color:0x232833,roughness:1,transparent:true,opacity:.55,side:THREE.DoubleSide});
-  const back=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.h),wallMat);
-  back.position.set(0,p.h/2,-p.d/2);back.receiveShadow=true;R.room.add(back);
-  const left=new THREE.Mesh(new THREE.PlaneGeometry(p.d,p.h),wallMat);
-  left.rotation.y=Math.PI/2;left.position.set(-p.w/2,p.h/2,0);left.receiveShadow=true;R.room.add(left);
+  const glassMat=new THREE.MeshStandardMaterial({color:0x8fc3e0,roughness:.08,metalness:.05,transparent:true,opacity:.3,side:THREE.DoubleSide});
+  wallSegments3D("back",p.w,p.h).forEach(s=>{
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(s.to-s.from,s.yTo-s.yFrom),wallMat);
+    m.position.set(-p.w/2+(s.from+s.to)/2,(s.yFrom+s.yTo)/2,-p.d/2);m.receiveShadow=true;R.room.add(m);
+  });
+  wallSegments3D("left",p.d,p.h).forEach(s=>{
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(s.to-s.from,s.yTo-s.yFrom),wallMat);
+    m.rotation.y=Math.PI/2;m.position.set(-p.w/2,(s.yFrom+s.yTo)/2,-p.d/2+(s.from+s.to)/2);m.receiveShadow=true;R.room.add(m);
+  });
+  // glass pane for windows
+  (p.openings||[]).forEach(o=>{
+    if(o.type!=="janela")return;
+    const yMid=(o.sill||0)+o.height/2;
+    if(o.wall==="back"){
+      const g=new THREE.Mesh(new THREE.PlaneGeometry(o.width,o.height),glassMat);
+      g.position.set(-p.w/2+o.pos,yMid,-p.d/2);R.room.add(g);
+    }else if(o.wall==="left"){
+      const g=new THREE.Mesh(new THREE.PlaneGeometry(o.width,o.height),glassMat);
+      g.rotation.y=Math.PI/2;g.position.set(-p.w/2,yMid,-p.d/2+o.pos);R.room.add(g);
+    }
+  });
   // grid on floor
   const grid=new THREE.GridHelper(Math.max(p.w,p.d),Math.max(p.w,p.d)/50,0x2a2f3a,0x1f2430);
   grid.position.y=0.5;R.room.add(grid);
@@ -1666,17 +1882,28 @@ function makeMesh3D(o){
 function sync3D(){
   if(!R.scene)return;
   const p=STATE.current;
-  // rebuild room if size changed
-  if(!R.room||R._w!==p.w||R._d!==p.d||R._h!==p.h){R._w=p.w;R._d=p.d;R._h=p.h;buildRoom3D();}
+  // rebuild room if size or openings changed
+  const openKey=JSON.stringify(p.openings||[]);
+  if(!R.room||R._w!==p.w||R._d!==p.d||R._h!==p.h||R._openKey!==openKey){R._w=p.w;R._d=p.d;R._h=p.h;R._openKey=openKey;buildRoom3D();}
   // remove stale
   Object.keys(R.meshes).forEach(uid=>{if(!p.objects.find(o=>o.uid===uid)){R.scene.remove(R.meshes[uid]);delete R.meshes[uid];}});
   // add/update
   p.objects.forEach(o=>{
     if(R.meshes[o.uid])R.scene.remove(R.meshes[o.uid]);
     const m=makeMesh3D(o);R.meshes[o.uid]=m;R.scene.add(m);
-    // selection outline
-    if(o.uid===STATE.selected){const box=new THREE.BoxHelper(m,0xf0653a);box.userData.helper=true;m.add(box);}
   });
+  // selection outline: o BoxHelper calcula a caixa em coordenadas de MUNDO, então
+  // precisa ser filho da cena (não do próprio módulo) — senão a posição/rotação
+  // do módulo é aplicada duas vezes e a moldura laranja "foge" para frente dele.
+  if(R.selectionHelper){R.scene.remove(R.selectionHelper);R.selectionHelper=null;}
+  if(STATE.selected&&R.meshes[STATE.selected]){
+    const m=R.meshes[STATE.selected];
+    m.updateMatrixWorld(true);
+    const box=new THREE.BoxHelper(m,0xf0653a);
+    box.userData.helper=true;
+    R.scene.add(box);
+    R.selectionHelper=box;
+  }
 }
 function updateCam(){if(!R.cam)return;const s=orbitState;
   R.cam.position.set(s.target.x+s.dist*Math.sin(s.phi)*Math.sin(s.theta),
@@ -1687,7 +1914,7 @@ function resize3D(){if(!R.rn)return;const cv=$("#stage3d");const r=cv.parentElem
 function loop3D(){if(!R.rn)return;
   if(STATE.camPreset==="orbit"&&STATE.view==="3d"&&!orbitState.dragging){orbitState.theta+=0.0025;updateCam();}
   R.rn.render(R.scene,R.cam);R.raf=requestAnimationFrame(loop3D);}
-function stop3D(){cancelAnimationFrame(R.raf);R.rn=null;R.scene=null;R.meshes={};}
+function stop3D(){cancelAnimationFrame(R.raf);R.rn=null;R.scene=null;R.meshes={};R.selectionHelper=null;}
 
 function setCam(preset){STATE.camPreset=preset;syncCamButtons();
   const p=STATE.current;const s=orbitState;
@@ -1872,6 +2099,8 @@ const ICO={
   grid:S('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>'),
   layers:S('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
   check:S('<polyline points="20 6 9 17 4 12"/>'),
+  door:S('<path d="M5 21V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v17"/><line x1="3" y1="21" x2="21" y2="21"/><circle cx="13.2" cy="12" r=".9" fill="currentColor" stroke="none"/>'),
+  window:S('<rect x="3" y="3" width="18" height="18" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/>'),
 };
 const LOGO=`<span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M3 12h18M9 21v-6h6v6"/></svg></span>`;
 
