@@ -436,34 +436,35 @@ const roomIco = id => (ROOM_TYPES.find(r=>r.id===id)||{}).ico || "📐";
 // Montagem rápida / IA presets — por tipo de ambiente
 const QUICK_LAYOUTS = {
   cozinha:[
-    {item:"mod-pia",x:-100,z:120,rot:0},{item:"mod-forno",x:20,z:135,rot:0},
-    {item:"mod-geladeira",x:110,z:130,rot:0},{item:"aereo",x:-100,z:135,y:150,rot:0},
-    {item:"aereo",x:-20,z:135,y:150,rot:0},{item:"ilha",x:0,z:-20,rot:0},
+    {item:"mod-pia",x:-100,z:120,rot:180},{item:"mod-forno",x:20,z:135,rot:180},
+    {item:"mod-geladeira",x:110,z:130,rot:180},{item:"geladeira",x:110,z:130,rot:180},
+    {item:"aereo",x:-100,z:135,y:150,rot:180},{item:"aereo",x:-20,z:135,y:150,rot:180},
+    {item:"ilha",x:0,z:-20,rot:0},{item:"cooktop",x:0,z:-20,y:90,rot:0},
   ],
   quarto:[
     {item:"cama",x:-15,z:-35,rot:0},{item:"criado",x:90,z:-120,rot:0},
-    {item:"roupeiro",x:-90,z:130,rot:0},{item:"gaveteiro",x:60,z:135,rot:0},
-    {item:"nicho",x:110,z:135,y:120,rot:0},
+    {item:"roupeiro",x:-90,z:130,rot:180},{item:"gaveteiro",x:60,z:135,rot:180},
+    {item:"nicho",x:110,z:135,y:120,rot:180},
   ],
   sala:[
     {item:"painel",x:0,z:-140,rot:0},{item:"sofa",x:0,z:60,rot:180},
-    {item:"arm-inf",x:-90,z:-130,rot:0},{item:"nicho",x:90,z:-135,y:110,rot:0},
+    {item:"arm-inf",x:-105,z:-130,rot:0},{item:"nicho",x:90,z:-135,y:110,rot:0},
     {item:"prat",x:90,z:-135,y:150,rot:0},
   ],
   closet:[
-    {item:"roupeiro",x:-100,z:130,rot:0},{item:"roupeiro",x:20,z:130,rot:0},
-    {item:"gaveteiro",x:-100,z:-120,rot:180},{item:"prat",x:20,z:-125,y:160,rot:180},
+    {item:"roupeiro",x:-100,z:130,rot:180},{item:"roupeiro",x:20,z:130,rot:180},
+    {item:"gaveteiro",x:-100,z:-120,rot:0},{item:"prat",x:20,z:-125,y:160,rot:0},
   ],
   escritorio:[
     {item:"mesa",x:0,z:80,rot:0},{item:"arm-inf",x:-90,z:-125,rot:0},
     {item:"arm-torre",x:60,z:-120,rot:0},{item:"prat",x:-20,z:-135,y:150,rot:0},
   ],
   lavanderia:[
-    {item:"lav-tanque",x:-70,z:130,rot:0},{item:"lav-maq",x:40,z:120,rot:0},
-    {item:"aereo",x:-70,z:135,y:150,rot:0},{item:"banc",x:-30,z:130,rot:0},
+    {item:"lav-tanque",x:-70,z:130,rot:180},{item:"lav-maq",x:40,z:120,rot:180},
+    {item:"aereo",x:-70,z:135,y:150,rot:180},
   ],
-  banheiro:[{item:"ban-gab",x:-40,z:130,rot:0},{item:"espelho",x:-40,z:135,y:95,rot:0},{item:"nicho",x:70,z:135,y:120,rot:0}],
-  outro:[{item:"arm-inf",x:0,z:120,rot:0},{item:"prat",x:0,z:130,y:150,rot:0}],
+  banheiro:[{item:"ban-gab",x:-40,z:130,rot:180},{item:"espelho",x:-40,z:135,y:95,rot:180},{item:"nicho",x:70,z:135,y:120,rot:180}],
+  outro:[{item:"arm-inf",x:0,z:120,rot:180},{item:"prat",x:0,z:130,y:150,rot:180}],
 };
 
 /* Paletas de material por estilo — cada módulo recebe um acabamento
@@ -705,10 +706,11 @@ function drawHeroScene(){
     return {uid:"hero_"+item+"_"+x+"_"+z,item,x,y:y||0,z,rot:rot||0,w:it.w,h:it.h,d:it.d,
       doors:it.doors,drawers:it.drawers,mat:matOverride||pickMat(item,"Moderno")};};
   const heroObjs=[
-    heroObj("mod-pia",-100,0,120),heroObj("mod-forno",20,0,135),
-    heroObj("aereo",-100,150,135),heroObj("aereo",-20,150,135),
-    heroObj("ilha",0,0,-20),heroObj("geladeira",110,0,130,0,"branco"),
-    heroObj("cuba",-100,82,122,0,"branco"),heroObj("torneira",-100,82,108,0,"branco"),
+    heroObj("mod-pia",-100,0,120,180),heroObj("mod-forno",20,0,135,180),
+    heroObj("aereo",-100,150,135,180),heroObj("aereo",-20,150,135,180),
+    heroObj("ilha",0,0,-20),heroObj("geladeira",110,0,130,180,"branco"),
+    heroObj("cooktop",0,90,-20,0,"branco"),
+    heroObj("cuba",-100,82,118,180,"branco"),heroObj("torneira",-100,82,132,180,"branco"),
     heroObj("planta",60,90,-20,0,"branco"),
   ];
   const grp=new THREE.Group();
