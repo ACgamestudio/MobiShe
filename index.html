@@ -1214,6 +1214,9 @@ function renderRight(){
   $("#rp-title").textContent=it.n;
   $("#rp-sub").textContent="R$ "+fmt(objBudget(o))+" estimado";
   b.innerHTML=`
+    <p style="font-size:11.5px;color:var(--ink-3);line-height:1.5;margin-bottom:14px">
+      Dica: use as setas do teclado (← → ↑ ↓) para mover o módulo e PageUp/PageDown para subir ou descer a altura. Segure Shift para passos maiores.
+    </p>
     <div class="prop-group"><div class="prop-group-t">Dimensões (cm)</div>
       <div class="prop-row"><label>Largura</label><input type="number" value="${o.w}" onchange="setProp('w',this.value)"></div>
       <div class="prop-row"><label>Altura</label><input type="number" value="${o.h}" onchange="setProp('h',this.value)"></div>
@@ -2147,6 +2150,30 @@ document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==="y"){e.preventDefault();redo();}
   if((e.key==="Delete"||e.key==="Backspace")&&STATE.selected&&document.activeElement.tagName!=="INPUT"){deleteObj();}
   if(e.key==="d"&&STATE.selected&&document.activeElement.tagName!=="INPUT"){duplicateObj();}
+  /* mover o módulo selecionado com o teclado — funciona nos modos 2D e 3D:
+     setas ← → = move para os lados, setas ↑ ↓ = move para frente/para trás,
+     PageUp/PageDown = sobe/desce (altura). Segurar Shift move em passos maiores. */
+  const MOVE_KEYS=["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","PageUp","PageDown"];
+  if(MOVE_KEYS.includes(e.key)&&STATE.selected&&document.activeElement.tagName!=="INPUT"){
+    e.preventDefault();
+    const o=getSel();if(!o)return;
+    if(!STATE._movingKey){snapshot();STATE._movingKey=true;}
+    const step=e.shiftKey?20:5;
+    if(e.key==="PageUp"||e.key==="PageDown"){
+      o.y=Math.max(0,(o.y||0)+(e.key==="PageUp"?step:-step));
+    }else{
+      const prevX=o.x,prevZ=o.z;
+      if(e.key==="ArrowLeft")o.x-=step;
+      if(e.key==="ArrowRight")o.x+=step;
+      if(e.key==="ArrowUp")o.z-=step;
+      if(e.key==="ArrowDown")o.z+=step;
+      if(isCollidable(o)&&collidesWithAny(o,o.uid)){o.x=prevX;o.z=prevZ;}
+    }
+    refreshEditor();renderRight();
+  }
+});
+document.addEventListener("keyup",e=>{
+  if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","PageUp","PageDown"].includes(e.key))STATE._movingKey=false;
 });
 renderSplash();
 </script>
