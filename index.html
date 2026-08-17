@@ -438,7 +438,7 @@ const QUICK_LAYOUTS = {
   cozinha:[
     {item:"mod-pia",x:-100,z:120,rot:180},{item:"mod-forno",x:20,z:135,rot:180},
     {item:"mod-geladeira",x:110,z:130,rot:180},{item:"geladeira",x:110,z:130,rot:180},
-    {item:"aereo",x:-100,z:135,y:150,rot:180},{item:"aereo",x:-20,z:135,y:150,rot:180},
+    {item:"aereo",x:-100,z:135,y:150,rot:180},
     {item:"ilha",x:0,z:-20,rot:0},{item:"cooktop",x:0,z:-20,y:90,rot:0},
   ],
   quarto:[
@@ -1722,20 +1722,29 @@ function mountedFaucet(h,d,x,y,z){
   return f;
 }
 /* cuba/basin recortada (aberta de verdade) sobre um tampo — usado pela pia
-   da cozinha e pelo gabinete do banheiro */
+   da cozinha e pelo gabinete do banheiro. O tampo é montado em 4 tiras
+   (moldura) em vez de uma laje sólida, deixando um vão real onde a cuba
+   fica encaixada e visível — antes a laje sólida cobria a cuba por cima,
+   escondendo-a dentro do móvel. */
 function sinkTop(o,stoneId,wRatio,dRatio,depthRatio,offX){
   const g=new THREE.Group();
   const stoneMat=findMat(stoneId||"granito");
   const topThick=Math.max(3,o.h*0.035);
   const topTex=getMatTexture(stoneMat,{w:o.w,h:6});
   const topMesh=new THREE.MeshStandardMaterial({color:0xffffff,map:topTex,roughness:.25,metalness:.15});
-  const top=new THREE.Mesh(new THREE.BoxGeometry(o.w+3,topThick,o.d+3),topMesh);
-  top.position.y=o.h+topThick/2;top.castShadow=true;top.receiveShadow=true;g.add(top);
   const steel=new THREE.MeshStandardMaterial({color:0xd7dade,metalness:.85,roughness:.25});
   const basinW=o.w*(wRatio||0.42),basinD=o.d*(dRatio||0.62),basinDepth=Math.max(9,o.h*(depthRatio||0.14));
   const wallT=1.4;
-  const by=o.h+topThick-basinDepth/2-0.4;
   const bx=offX!==undefined?offX:-o.w*0.12;
+  const topY=o.h+topThick/2;
+  const fw=(o.w+3)/2,fd=(o.d+3)/2,hw=basinW/2,hd=basinD/2;
+  const mkTop=(w,d,cx,cz)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(Math.max(w,0.01),topThick,Math.max(d,0.01)),topMesh);
+    m.position.set(cx,topY,cz);m.castShadow=true;m.receiveShadow=true;g.add(m);};
+  mkTop(fw*2,fd-hd,0,(hd+fd)/2);        // tira de trás
+  mkTop(fw*2,fd-hd,0,-(hd+fd)/2);       // tira da frente
+  mkTop(bx-hw+fw,hd*2,(bx-hw-fw)/2,0);  // tira da esquerda (entre a borda e o vão)
+  mkTop(fw-(bx+hw),hd*2,(fw+bx+hw)/2,0);// tira da direita (entre o vão e a borda)
+  const by=o.h+topThick-basinDepth/2-0.4;
   const bottom=new THREE.Mesh(new THREE.BoxGeometry(basinW,wallT,basinD),steel);
   bottom.position.set(bx,by-basinDepth/2+wallT/2,0);g.add(bottom);
   [-1,1].forEach(sx=>{const wall=new THREE.Mesh(new THREE.BoxGeometry(wallT,basinDepth,basinD),steel);
