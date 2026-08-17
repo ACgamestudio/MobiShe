@@ -710,8 +710,6 @@ function drawHeroScene(){
     heroObj("aereo",-100,150,135,180),heroObj("aereo",-20,150,135,180),
     heroObj("ilha",0,0,-20),heroObj("geladeira",110,0,130,180,"branco"),
     heroObj("cooktop",0,90,-20,0,"branco"),
-    heroObj("cuba",-100,82,118,180,"branco"),heroObj("torneira",-100,82,132,180,"branco"),
-    heroObj("planta",60,90,-20,0,"branco"),
   ];
   const grp=new THREE.Group();
   heroObjs.forEach(o=>grp.add(makeMesh3D(o)));
@@ -1093,9 +1091,12 @@ function applyMat(mid){
 
 /* ============================================================
    DETECÇÃO DE COLISÃO — módulos reais (não-acessórios) nunca podem
-   ocupar o mesmo espaço de outro módulo. Acessórios (cuba, torneira,
-   TV, quadro etc.) ficam de fora, pois se apoiam propositalmente
-   sobre/dentro de outros módulos.
+   ocupar o mesmo espaço (X/Z) de outro módulo NA MESMA FAIXA DE ALTURA.
+   Ou seja, um módulo pode ficar embaixo/em cima de outro (ex.: armário
+   aéreo sobre um de piso) — só é bloqueado quando as faixas de altura
+   (y até y+h) também se cruzam, além do retângulo X/Z.
+   Acessórios (cuba, torneira, TV, quadro etc.) ficam de fora, pois se
+   apoiam propositalmente sobre/dentro de outros módulos.
    ============================================================ */
 function isCollidable(o){const it=findItem(o.item);return !!it && !it.noCost;}
 function rectCorners(o){
@@ -1122,9 +1123,15 @@ function rectsOverlap(a,b){
   }
   return true;
 }
+function verticalOverlap(a,b){
+  const margin=0.6; // mesma tolerância usada no plano XZ
+  const aY0=a.y||0, aY1=aY0+(a.h||0);
+  const bY0=b.y||0, bY1=bY0+(b.h||0);
+  return aY1>bY0+margin && bY1>aY0+margin;
+}
 function collidesWithAny(obj,excludeUid){
   if(!isCollidable(obj))return false;
-  return STATE.current.objects.some(o=>o.uid!==excludeUid && o!==obj && isCollidable(o) && rectsOverlap(obj,o));
+  return STATE.current.objects.some(o=>o.uid!==excludeUid && o!==obj && isCollidable(o) && rectsOverlap(obj,o) && verticalOverlap(obj,o));
 }
 function findFreeSpot(obj,startX,startZ){
   obj.x=startX;obj.z=startZ;
