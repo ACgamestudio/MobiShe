@@ -611,8 +611,8 @@ function renderHome(){
       <div class="hero">
         <div>
           <span class="hero-eyebrow">Marcenaria digital</span>
-          <h1>Do briefing ao<br><em>orçamento</em> em minutos.</h1>
-          <p>Monte cozinhas, closets e ambientes planejados arrastando módulos prontos. Veja em 3D, calcule o custo e gere a lista de corte — sem saber modelar.</p>
+          <h1>Do briefing ao<br><em>projeto</em> em minutos.</h1>
+          <p>Monte cozinhas, closets e ambientes planejados arrastando módulos prontos. Veja em 3D e gere a lista de corte — sem saber modelar.</p>
           <div class="hero-cta">
             <button class="btn btn-primary" onclick="openWizard()">${ICO.plus} Novo projeto</button>
             <button class="btn btn-ghost" onclick="openAI()">${ICO.spark} Criar com IA</button>
@@ -639,7 +639,7 @@ function renderHome(){
         <div class="about-body">
           <h3>${OWNER.name}</h3>
           <div class="about-role">Arquitetura &amp; Interiores</div>
-          <p>Este é o ambiente de trabalho da Sheilla para criar projetos de móveis planejados com rapidez — do briefing do cliente ao orçamento e à lista de corte, tudo em um só lugar.</p>
+          <p>Este é o ambiente de trabalho da Sheilla para criar projetos de móveis planejados com rapidez — do briefing do cliente à lista de corte, tudo em um só lugar.</p>
           <div class="about-stats">
             <div><b>+15</b><span>anos de experiência</span></div>
             <div><b>${STATE.projects.length}</b><span>projetos no app</span></div>
@@ -665,7 +665,7 @@ function renderHome(){
         <div class="features">
           <div class="feat"><div class="fi">${ICO.grid}</div><h4>Editor 2D + 3D</h4><p>Arraste módulos na planta e alterne para 3D com um clique.</p></div>
           <div class="feat"><div class="fi">${ICO.layers}</div><h4>Biblioteca de módulos</h4><p>Armários, torres, ilhas e bancadas com medidas editáveis.</p></div>
-          <div class="feat"><div class="fi">${ICO.tag}</div><h4>Orçamento automático</h4><p>Custo estimado de MDF, ferragens e acabamento em tempo real.</p></div>
+          <div class="feat"><div class="fi">${ICO.tag}</div><h4>Resumo automático</h4><p>Total de módulos, portas, gavetas e área de MDF em tempo real.</p></div>
           <div class="feat"><div class="fi">${ICO.doc}</div><h4>Lista de corte</h4><p>Peças, medidas e materiais prontos para exportar em PDF/CSV.</p></div>
         </div>
       </div>
@@ -681,7 +681,7 @@ function projectCard(pr){
     <div class="card-thumb tex"><span class="rm-ico">${roomIco(pr.room)}</span>
       <span class="card-badge">${roomName(pr.room)}</span>
       <span class="card-fav" onclick="event.stopPropagation();toggleFav('${pr.id}')">${pr.fav?'★':'☆'}</span></div>
-    <div class="card-body"><h3>${pr.name}</h3><p>${m.modules} módulos · R$ ${fmt(m.total)}</p></div>
+    <div class="card-body"><h3>${pr.name}</h3><p>${m.modules} módulos · ${roomName(pr.room)}</p></div>
   </button>`;
 }
 function toggleFav(id){const p=STATE.projects.find(x=>x.id===id);p.fav=!p.fav;renderHome();}
@@ -881,7 +881,7 @@ function renderEditor(){
         <button id="v3d" class="${STATE.view==='3d'?'on':''}" onclick="setView('3d')">3D</button>
       </div>
       <div class="tb-divider"></div>
-      <button class="tb-btn-lg" onclick="openBudget()">${ICO.tag}<span>Orçamento</span></button>
+      <button class="tb-btn-lg" onclick="openBudget()">${ICO.tag}<span>Resumo</span></button>
       <button class="tb-btn-lg accent" onclick="openExport()">${ICO.export}<span>Exportar</span></button>
     </div>
 
@@ -911,9 +911,9 @@ function renderEditor(){
             .map(([k,l])=>`<button class="${STATE.camPreset===k?'on':''}" onclick="setCam('${k}')">${l}</button>`).join("")}
         </div>
         <div class="budget-bar">
-          <div class="bb-t">Total estimado</div>
-          <div class="bb-v">R$ <span id="bb-total">0,00</span></div>
-          <div class="bb-sub"><span id="bb-mods">0 módulos</span><span id="bb-area">0 m²</span></div>
+          <div class="bb-t">Resumo do projeto</div>
+          <div class="bb-v"><span id="bb-mods">0</span> módulos</div>
+          <div class="bb-sub"><span id="bb-doors">0 portas</span><span id="bb-area">0 m²</span></div>
         </div>
         <div class="empty-hint hide" id="empty-hint">
           <div class="ei">${ICO.chair}</div>
@@ -1219,7 +1219,7 @@ function renderRight(){
   }
   const it=findItem(o.item);
   $("#rp-title").textContent=it.n;
-  $("#rp-sub").textContent="R$ "+fmt(objBudget(o))+" estimado";
+  $("#rp-sub").textContent=o.w+"×"+o.h+"×"+o.d+" cm";
   b.innerHTML=`
     <p style="font-size:11.5px;color:var(--ink-3);line-height:1.5;margin-bottom:14px">
       Dica: use as setas do teclado (← → ↑ ↓) para mover o módulo e PageUp/PageDown para subir ou descer a altura. Segure Shift para passos maiores.
@@ -1288,8 +1288,8 @@ function refreshEditor(){draw2D();sync3D();updateBudgetBar();updateHistBtns();
   const eh=$("#empty-hint");if(eh)eh.classList.toggle("hide",!empty);}
 function updateBudgetBar(){
   const m=projectMetrics(STATE.current);
-  if($("#bb-total"))$("#bb-total").textContent=fmt(m.total);
-  if($("#bb-mods"))$("#bb-mods").textContent=m.modules+" módulos";
+  if($("#bb-mods"))$("#bb-mods").textContent=m.modules;
+  if($("#bb-doors"))$("#bb-doors").textContent=m.doors+" portas";
   if($("#bb-area"))$("#bb-area").textContent=m.mdf+" m²";
 }
 function updateHistBtns(){
@@ -1963,10 +1963,10 @@ function openBudget(){
   const p=STATE.current;const m=projectMetrics(p);
   const rows=p.objects.map((o,i)=>{const it=findItem(o.item);
     return `<tr><td>${it.n} #${i+1}</td><td>${findMat(o.mat).n}</td>
-      <td class="num">${o.w}×${o.h}×${o.d}</td><td class="num">R$ ${fmt(objBudget(o))}</td></tr>`;}).join("");
+      <td class="num">${o.w}×${o.h}×${o.d}</td></tr>`;}).join("");
   $("#app").insertAdjacentHTML("beforeend",`
    <div class="overlay" id="bud-overlay"><div class="modal" style="max-width:600px">
-     <div class="modal-head"><h2>${ICO.tag} Orçamento estimado</h2><p>${p.name} · ${roomName(p.room)}</p></div>
+     <div class="modal-head"><h2>${ICO.tag} Resumo do projeto</h2><p>${p.name} · ${roomName(p.room)}</p></div>
      <div class="modal-body">
        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
          ${[["Módulos",m.modules],["Portas",m.doors],["Gavetas",m.drawers],["MDF",m.mdf+" m²"]].map(([l,v])=>`
@@ -1974,13 +1974,8 @@ function openBudget(){
              <div style="font-size:20px;font-weight:800">${v}</div>
              <div style="font-size:11px;color:var(--ink-3);margin-top:2px">${l}</div></div>`).join("")}
        </div>
-       <div class="cut-scroll"><table class="cut-table"><thead><tr><th>Módulo</th><th>Material</th><th>L×A×P</th><th style="text-align:right">Subtotal</th></tr></thead>
-         <tbody>${rows||'<tr><td colspan=4 style="text-align:center;padding:24px;color:var(--ink-3)">Nenhum módulo no projeto</td></tr>'}</tbody></table></div>
-       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2)">
-         <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em">Total estimado</div>
-           <div style="font-size:28px;font-weight:800;color:var(--accent-ink)">R$ ${fmt(m.total)}</div></div>
-         <div style="font-size:11.5px;color:var(--ink-3);text-align:right;max-width:200px;line-height:1.4">Valores de MDF, ferragens e pedra configuráveis pelo administrador.</div>
-       </div>
+       <div class="cut-scroll"><table class="cut-table"><thead><tr><th>Módulo</th><th>Material</th><th>L×A×P</th></tr></thead>
+         <tbody>${rows||'<tr><td colspan=3 style="text-align:center;padding:24px;color:var(--ink-3)">Nenhum módulo no projeto</td></tr>'}</tbody></table></div>
      </div>
      <div class="modal-foot"><button class="btn btn-ghost" onclick="closeOverlays()">Fechar</button>
        <button class="btn btn-primary" onclick="exportBudgetPDF()">${ICO.export} Baixar PDF</button></div>
@@ -1999,7 +1994,7 @@ function openExport(){
        <button class="export-item" onclick="exportImage()"><span class="xi">${ICO.image}</span>
          <span class="xt"><b>Imagem do ambiente</b><small>PNG da vista atual (2D ou 3D)</small></span></button>
        <button class="export-item" onclick="exportBudgetPDF()"><span class="xi">${ICO.tag}</span>
-         <span class="xt"><b>Orçamento em PDF</b><small>Resumo + itens + total estimado</small></span></button>
+         <span class="xt"><b>Resumo em PDF</b><small>Resumo + lista de módulos e medidas</small></span></button>
        <button class="export-item" onclick="exportCutPDF()"><span class="xi">${ICO.doc}</span>
          <span class="xt"><b>Lista de corte (PDF)</b><small>Peças, medidas e materiais</small></span></button>
        <button class="export-item" onclick="exportCutCSV()"><span class="xi">${ICO.sheet}</span>
@@ -2049,23 +2044,20 @@ function pdfHeader(doc,title){
 }
 function exportBudgetPDF(){
   const {jsPDF}=window.jspdf;const doc=new jsPDF();const p=STATE.current;const m=projectMetrics(p);
-  pdfHeader(doc,"Orçamento estimado");
+  pdfHeader(doc,"Resumo do projeto");
   let y=54;doc.setTextColor(30,30,30);doc.setFontSize(10);
   doc.setFont("helvetica","bold");
-  doc.text("Item",14,y);doc.text("Material",90,y);doc.text("Medidas",135,y);doc.text("Subtotal",196,y,{align:"right"});
+  doc.text("Item",14,y);doc.text("Material",90,y);doc.text("Medidas",135,y);
   doc.setDrawColor(220,220,220);doc.line(14,y+2,196,y+2);y+=8;doc.setFont("helvetica","normal");
   p.objects.forEach((o,i)=>{const it=findItem(o.item);
     if(y>270){doc.addPage();y=20;}
     doc.text((it.n+" #"+(i+1)).slice(0,34),14,y);
     doc.text(findMat(o.mat).n.slice(0,22),90,y);
-    doc.text(`${o.w}×${o.h}×${o.d}`,135,y);
-    doc.text("R$ "+fmt(objBudget(o)),196,y,{align:"right"});y+=7;});
+    doc.text(`${o.w}×${o.h}×${o.d}`,135,y);y+=7;});
   y+=4;doc.line(14,y,196,y);y+=9;
   doc.setFontSize(9);doc.setTextColor(110,110,110);
-  doc.text(`${m.modules} módulos  ·  ${m.doors} portas  ·  ${m.drawers} gavetas  ·  ${m.mdf} m² de MDF`,14,y);y+=10;
-  doc.setFontSize(13);doc.setFont("helvetica","bold");doc.setTextColor(240,101,58);
-  doc.text("Total estimado:  R$ "+fmt(m.total),14,y);
-  doc.save(safeName()+"_orcamento.pdf");closeOverlays();toast("Orçamento em PDF");
+  doc.text(`${m.modules} módulos  ·  ${m.doors} portas  ·  ${m.drawers} gavetas  ·  ${m.mdf} m² de MDF`,14,y);
+  doc.save(safeName()+"_resumo.pdf");closeOverlays();toast("Resumo em PDF");
 }
 function exportCutPDF(){
   const {jsPDF}=window.jspdf;const doc=new jsPDF();const rows=cutList(STATE.current);
