@@ -1,0 +1,19 @@
+{
+  "name": "MobiShe — Móveis planejados",
+  "short_name": "MobiShe",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#0f1115",
+  "theme_color": "#eef0f2",
+  "icons": [
+    {
+      "src": "assets/logovegas.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
