@@ -135,6 +135,12 @@ input,select{font-family:inherit}
 .feat p{font-size:12.5px;color:var(--ink-3);line-height:1.5}
 
 /* ---------- MODAL / WIZARD ---------- */
+.floor-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:0 24px 24px}
+.floor-sw{display:flex;align-items:center;gap:10px;padding:8px;border:1.5px solid var(--line-2);border-radius:12px;background:var(--panel-2);cursor:pointer;transition:.15s}
+.floor-sw:hover{border-color:var(--accent)}
+.floor-sw.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.floor-chip{width:40px;height:40px;border-radius:9px;flex:0 0 auto;border:1px solid rgba(0,0,0,.2)}
+.floor-nm{font-size:12.5px;color:var(--ink);text-align:left;line-height:1.25}
 .overlay{position:fixed;inset:0;background:rgba(6,8,11,.72);backdrop-filter:blur(6px);z-index:200;display:grid;place-items:center;padding:20px;animation:fade .2s}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .modal{background:var(--panel);border:1px solid var(--line-2);border-radius:18px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:0 40px 90px -30px rgba(0,0,0,.9)}
@@ -977,40 +983,140 @@ function projectCard(pr){
 }
 function toggleFav(id){const p=STATE.projects.find(x=>x.id===id);p.fav=!p.fav;renderHome();}
 
-/* ---- hero mini 3D scene ---- */
+/* ---- hero mini 3D scene: quarto decorado, a "vitrine" do app ---- */
 let heroAnim=null;
 function drawHeroScene(){
   const cv=$("#hero-canvas");if(!cv||!window.THREE)return;
-  const scene=new THREE.Scene();scene.background=new THREE.Color(0x171a21);
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0x2b2620);
+  scene.fog=new THREE.Fog(0x2b2620,900,1900);
   const cam=new THREE.PerspectiveCamera(42,cv.clientWidth/cv.clientHeight,0.1,3000);
-  cam.position.set(300,255,390);cam.lookAt(0,75,0);
+  cam.position.set(330,250,400);cam.lookAt(0,70,-10);
   const rn=new THREE.WebGLRenderer({canvas:cv,antialias:true});
   rn.setSize(cv.clientWidth,cv.clientHeight,false);rn.setPixelRatio(Math.min(devicePixelRatio,2));
-  rn.shadowMap.enabled=true;
-  scene.add(new THREE.AmbientLight(0xffffff,.46));
-  const dl=new THREE.DirectionalLight(0xffffff,.82);dl.position.set(220,420,220);dl.castShadow=true;scene.add(dl);
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(700,700),new THREE.MeshStandardMaterial({color:0x14161c,roughness:.9}));
-  floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+  rn.shadowMap.enabled=true;rn.shadowMap.type=THREE.PCFSoftShadowMap;
 
-  // quarto completo em miniatura, com as mesmas texturas do editor
+  // iluminação mais baixa e quente (ambiente aconchegante, não estourado)
+  scene.add(new THREE.AmbientLight(0xffe9d2,.38));
+  const dl=new THREE.DirectionalLight(0xffe6c4,.6);dl.position.set(200,420,260);
+  dl.castShadow=true;dl.shadow.mapSize.set(1024,1024);
+  dl.shadow.camera.left=-500;dl.shadow.camera.right=500;dl.shadow.camera.top=500;dl.shadow.camera.bottom=-500;
+  scene.add(dl);
+  const fill=new THREE.DirectionalLight(0x9fb4d6,.15);fill.position.set(-300,180,120);scene.add(fill);
+  const lampL=new THREE.PointLight(0xffcf88,.7,300,2);
+  const lampR=new THREE.PointLight(0xffcf88,.7,300,2);
+  scene.add(lampL);scene.add(lampR);
+
+  const RW=520, RD=460, RH=290;
+
+  // piso de madeira (tom médio, ambiente mais escuro)
+  const floorMat=new THREE.MeshStandardMaterial({color:0xa9855c,roughness:.7});
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(RW,RD),floorMat);
+  floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+  for(let i=-RW/2+16;i<RW/2;i+=32){
+    const l=new THREE.Mesh(new THREE.BoxGeometry(1.2,.4,RD),new THREE.MeshStandardMaterial({color:0x8f6f49,roughness:.8}));
+    l.position.set(i,.3,0);scene.add(l);
+  }
+
+  // paredes: FUNDO (-z) e DIREITA (+x) sólidas
+  const wallMat=new THREE.MeshStandardMaterial({color:0xcabcae,roughness:.96,side:THREE.DoubleSide});
+  const wBack=new THREE.Mesh(new THREE.BoxGeometry(RW,RH,8),wallMat);
+  wBack.position.set(0,RH/2,-RD/2);wBack.receiveShadow=true;scene.add(wBack);
+  const wRight=new THREE.Mesh(new THREE.BoxGeometry(8,RH,RD),wallMat);
+  wRight.position.set(RW/2,RH/2,0);wRight.receiveShadow=true;scene.add(wRight);
+  const skMat=new THREE.MeshStandardMaterial({color:0xe6ddcf,roughness:.7});
+  const sk1=new THREE.Mesh(new THREE.BoxGeometry(RW,14,3),skMat);sk1.position.set(0,7,-RD/2+5);scene.add(sk1);
+  const sk2=new THREE.Mesh(new THREE.BoxGeometry(3,14,RD),skMat);sk2.position.set(RW/2-5,7,0);scene.add(sk2);
+
+  // ---- móveis (tom marrom claro) ----
   const heroObj=(item,x,y,z,rot,matOverride)=>{const it=findItem(item);
     return {uid:"hero_"+item+"_"+x+"_"+z,item,x,y:y||0,z,rot:rot||0,w:it.w,h:it.h,d:it.d,
-      doors:it.doors,drawers:it.drawers,mat:matOverride||pickMat(item,"Moderno")};};
-  const heroObjs=[
-    heroObj("cama",-15,0,-35,0),heroObj("criado",90,0,-120,0),
-    heroObj("roupeiro",-90,0,130,180),heroObj("gaveteiro",60,0,135,180),
-    heroObj("nicho",110,120,135,180),
-  ];
-  /* mesma garantia do editor: nada dentro de outro móvel nem fora do piso,
-     inclusive nesta cena 3D girando ao vivo na tela inicial */
-  const heroRoom={w:420,d:380,h:270,objects:heroObjs,openings:[]};
-  const prev=STATE.current;STATE.current=heroRoom;
-  arrumarAmbiente(heroRoom);
-  STATE.current=prev;
+      doors:it.doors,drawers:it.drawers,mat:matOverride||"eu-carvalho"};};
+
+  // CAMA no canto fundo-esquerdo, cabeceira encostada na parede do fundo (-z), pés para +z
+  const camaObj=heroObj("cama",-120,0,-RD/2+ (findItem("cama").d/2) + 12,0,"eu-carvalho");
+  // 2 CRIADOS-MUDOS, um de cada lado da cabeceira
+  const camaW=findItem("cama").w, criadoW=findItem("criado").w;
+  const criadoZ=-RD/2+ findItem("criado").d/2 + 12;
+  const criadoEsq=heroObj("criado",-120-camaW/2-criadoW/2-8,0,criadoZ,0,"du-amendola");
+  const criadoDir=heroObj("criado",-120+camaW/2+criadoW/2+8,0,criadoZ,0,"du-amendola");
+  // GUARDA-ROUPA 6 portas encostado na parede DIREITA (+x), virado para a cama (-x)
+  const roupObj=heroObj("roupeiro",RW/2- findItem("roupeiro").d/2 -10,0,10,270,"eu-amendoa");
+  roupObj.w=270;roupObj.doors=6;roupObj.drawers=0;         // 6 portas
+  const heroObjs=[camaObj,criadoEsq,criadoDir,roupObj];
   const grp=new THREE.Group();
   heroObjs.forEach(o=>grp.add(makeMesh3D(o)));
+
+  // abajur em cima de cada criado-mudo
+  const criadoTopY=findItem("criado").h;
+  const mkAbajur=(cx,cz,light)=>{
+    const a=new THREE.Group();
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(7,9,4,18),new THREE.MeshStandardMaterial({color:0xb9982f,metalness:.6,roughness:.4}));base.position.y=2;a.add(base);
+    const haste=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,30,10),new THREE.MeshStandardMaterial({color:0xcaa94e,metalness:.6,roughness:.4}));haste.position.y=18;a.add(haste);
+    const cup=new THREE.Mesh(new THREE.CylinderGeometry(13,17,20,20,1,true),new THREE.MeshStandardMaterial({color:0xfff0d0,emissive:0xffcf88,emissiveIntensity:.7,roughness:.8,side:THREE.DoubleSide}));cup.position.y=40;a.add(cup);
+    a.position.set(cx,criadoTopY,cz);grp.add(a);
+    light.position.set(cx,criadoTopY+55,cz+8);
+  };
+  mkAbajur(criadoEsq.x,criadoEsq.z,lampL);
+  mkAbajur(criadoDir.x,criadoDir.z,lampR);
+
+  // livro sobre o criado esquerdo
+  const livro=new THREE.Group();
+  const capa=new THREE.Mesh(new THREE.BoxGeometry(24,4,18),new THREE.MeshStandardMaterial({color:0x9c4a3c,roughness:.6}));livro.add(capa);
+  const pag=new THREE.Mesh(new THREE.BoxGeometry(22,3,16),new THREE.MeshStandardMaterial({color:0xf7f1e0,roughness:.9}));pag.position.y=.3;livro.add(pag);
+  livro.position.set(criadoEsq.x+6,criadoTopY+2,criadoEsq.z+6);livro.rotation.y=.4;grp.add(livro);
+
+  // ---- PAINEL + TV na parede do FUNDO, de frente para a cama, atrás dos pés? 
+  // a cama tem cabeceira no fundo; a TV fica na parede DIREITA? Não: cliente pediu
+  // "painel e tv de frente a cama encostado na parede". A frente da cama aponta +z,
+  // então o painel vai na parede da FRENTE (+z). Como essa parede é aberta p/ a câmera,
+  // montamos só o painel+TV flutuando rente a ela, encostados no limite +z.
+  const painel=new THREE.Group();
+  const pnW=240,pnH=120;
+  const painelBoard=new THREE.Mesh(new THREE.BoxGeometry(pnW,pnH,6),new THREE.MeshStandardMaterial({color:0x6f4e34,roughness:.55}));
+  painelBoard.position.set(0,pnH/2+60,0);painelBoard.castShadow=true;painel.add(painelBoard);
+  // ripado vertical do painel
+  for(let x=-pnW/2+12;x<pnW/2;x+=20){
+    const rp=new THREE.Mesh(new THREE.BoxGeometry(6,pnH-8,8),new THREE.MeshStandardMaterial({color:0x7d5a3c,roughness:.6}));
+    rp.position.set(x,pnH/2+60,4);painel.add(rp);
+  }
+  const tv=new THREE.Mesh(new THREE.BoxGeometry(170,96,5),new THREE.MeshStandardMaterial({color:0x0a0a0c,roughness:.3,metalness:.2}));
+  tv.position.set(0,pnH/2+64,8);painel.add(tv);
+  const tela=new THREE.Mesh(new THREE.PlaneGeometry(160,86),new THREE.MeshStandardMaterial({color:0x11314f,emissive:0x1b4a70,emissiveIntensity:.35,roughness:.5}));
+  tela.position.set(0,pnH/2+64,11);painel.add(tela);
+  // posiciona o conjunto rente à parede da frente (+z), centrado na cama, virado p/ a cama (-z)
+  painel.position.set(-120,0,RD/2-8);painel.rotation.y=Math.PI;
+  scene.add(painel);
+
+  // ---- JANELA na parede ESQUERDA (oposta ao guarda-roupa) ----
+  // parede esquerda é aberta; montamos a janela rente ao limite -x
+  const janela=new THREE.Group();
+  const jw=170,jh=130,fr=8;
+  const woodWhite=new THREE.MeshStandardMaterial({color:0xf2ece1,roughness:.5});
+  const sky=new THREE.Mesh(new THREE.PlaneGeometry(jw,jh),new THREE.MeshStandardMaterial({color:0x2c3f5a,emissive:0x24405f,emissiveIntensity:.5,roughness:1}));
+  janela.add(sky);
+  [[0,jh/2,jw+fr*2,fr],[0,-jh/2,jw+fr*2,fr],[-jw/2,0,fr,jh],[jw/2,0,fr,jh],[0,0,fr*0.6,jh],[0,0,jw,fr*0.6]].forEach(([x,y,w,h])=>{
+    const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,5),woodWhite);b.position.set(x,y,0);janela.add(b);});
+  janela.position.set(-RW/2+8,175,-40);janela.rotation.y=Math.PI/2;
+  scene.add(janela);
+
+  // planta no canto livre (frente-esquerda)
+  const planta=new THREE.Group();planta.position.set(-RW/2+70,0,RD/2-90);
+  const vaso=new THREE.Mesh(new THREE.CylinderGeometry(14,10,26,18),new THREE.MeshStandardMaterial({color:0x8a5a38,roughness:.7}));vaso.position.y=13;planta.add(vaso);
+  [[0,40,0,20],[-10,50,6,15],[12,52,-4,14],[2,60,-2,13]].forEach(([x,y,z,r])=>{
+    const f=new THREE.Mesh(new THREE.SphereGeometry(r,10,10),new THREE.MeshStandardMaterial({color:0x4f7d47,roughness:.9}));
+    f.position.set(x,y,z);f.scale.y=1.5;planta.add(f);});
+  scene.add(planta);
+
   scene.add(grp);
-  function loop(){grp.rotation.y+=0.004;rn.render(scene,cam);heroAnim=requestAnimationFrame(loop);}
+
+  let ang=0;
+  function loop(){
+    ang+=0.0022;
+    cam.position.set(Math.sin(ang)*220+60, 250, Math.cos(ang)*180+330);
+    cam.lookAt(0,90,-20);
+    rn.render(scene,cam);
+    heroAnim=requestAnimationFrame(loop);
+  }
   cancelAnimationFrame(heroAnim);loop();
 }
 
@@ -2242,6 +2348,15 @@ function init3D(){
     if(moved>6)return;
     const r=cv.getBoundingClientRect();const m=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
     ray.setFromCamera(m,R.cam);
+    // duplo-toque no piso abre o seletor de piso
+    const now=Date.now();
+    if(R.floorMesh){
+      const fh=ray.intersectObject(R.floorMesh,false);
+      if(fh.length){
+        if(orbitState.lastFloorTap&&now-orbitState.lastFloorTap<350){orbitState.lastFloorTap=0;openFloorPicker();return;}
+        orbitState.lastFloorTap=now;
+      }
+    }
     const hits=ray.intersectObjects(Object.values(R.meshes),true);
     if(!hits.length){clearSelection();return;}
     // sobe até achar o módulo (uid) e captura a peça (part) mais próxima no caminho
@@ -2302,13 +2417,90 @@ function wallPlace(wall,p,along,y){
   if(wall==="left") return {x:-p.w/2,      y:y,z:-p.d/2+along, ry:Math.PI/2};
   return                  {x: p.w/2,      y:y,z:-p.d/2+along, ry:-Math.PI/2};
 }
+/* ---- opções de piso (cores lisas + pisos amadeirados / vinílico) ----
+   duplo-clique no piso em 3D abre o seletor. */
+const FLOOR_OPTIONS=[
+  {id:"cinza",   n:"Cimento claro",       hex:0xa9adb2},
+  {id:"grafite", n:"Grafite",             hex:0x53575c},
+  {id:"branco",  n:"Porcelanato branco",  hex:0xe8e6e1},
+  {id:"bege",    n:"Bege areia",          hex:0xd8cbb2},
+  {id:"terracota",n:"Terracota",          hex:0xb87a58},
+  {id:"vinil-mel",   n:"Vinílico Amadeirado Mel",    wood:true, base:"#c79a63", veio:"#9c7038", tabua:120},
+  {id:"vinil-nogal", n:"Vinílico Amadeirado Nogal",  wood:true, base:"#8a5f3c", veio:"#5f3f26", tabua:120},
+  {id:"vinil-carvalho",n:"Vinílico Amadeirado Carvalho",wood:true, base:"#caa877", veio:"#a07f4f", tabua:130},
+  {id:"vinil-cinza", n:"Vinílico Amadeirado Cinza",  wood:true, base:"#b6ada1", veio:"#8b8177", tabua:120},
+];
+let FLOOR_TEX_CACHE={};
+function getFloorTexture(fo){
+  if(!FLOOR_TEX_CACHE[fo.id]){
+    const cnv=document.createElement("canvas");cnv.width=cnv.height=256;
+    const cx=cnv.getContext("2d");
+    cx.fillStyle=fo.base;cx.fillRect(0,0,256,256);
+    // tábuas verticais do piso vinílico, com veios
+    const bw=64;                     // largura de tábua na textura
+    for(let x=0;x<256;x+=bw){
+      // leve variação de tom por tábua
+      const shade=Math.random()*0.10-0.05;
+      cx.save();cx.globalAlpha=Math.abs(shade);cx.fillStyle=shade>0?"#ffffff":"#000000";
+      cx.fillRect(x,0,bw,256);cx.restore();
+      // junta entre tábuas
+      cx.strokeStyle="rgba(0,0,0,.28)";cx.lineWidth=2;
+      cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,256);cx.stroke();
+      // veios da madeira
+      cx.strokeStyle=fo.veio;cx.globalAlpha=.35;
+      for(let k=0;k<5;k++){
+        const vx=x+8+Math.random()*(bw-16);
+        cx.lineWidth=1+Math.random()*1.5;cx.beginPath();
+        cx.moveTo(vx,0);
+        for(let y=0;y<=256;y+=32){cx.lineTo(vx+Math.sin(y*0.05+k)*3,y);}
+        cx.stroke();
+      }
+      cx.globalAlpha=1;
+    }
+    const t=new THREE.CanvasTexture(cnv);t.wrapS=t.wrapT=THREE.RepeatWrapping;
+    FLOOR_TEX_CACHE[fo.id]=t;
+  }
+  const tex=FLOOR_TEX_CACHE[fo.id].clone();tex.needsUpdate=true;
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  return tex;
+}
+/* seletor de piso — chamado com duplo-clique/duplo-toque no piso em 3D */
+function openFloorPicker(){
+  const p=STATE.current;if(!p)return;
+  const cur=p.floor||"cinza";
+  const swatch=fo=>{
+    const bg=fo.wood?`linear-gradient(135deg, ${fo.base}, ${fo.veio})`:`#${fo.hex.toString(16).padStart(6,"0")}`;
+    return `<button class="floor-sw ${cur===fo.id?'sel':''}" onclick="setFloor('${fo.id}')" title="${fo.n}">
+      <span class="floor-chip" style="background:${bg}"></span><span class="floor-nm">${fo.n}</span></button>`;
+  };
+  const html=`<div class="overlay" onclick="if(event.target===this)closeFloorPicker()">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-head" style="padding-bottom:16px"><h2>Piso do ambiente</h2><p>Escolha a cor ou o piso vinílico amadeirado.</p></div>
+      <div class="floor-grid">${FLOOR_OPTIONS.map(swatch).join("")}</div>
+    </div></div>`;
+  let host=$("#floor-picker");
+  if(!host){host=document.createElement("div");host.id="floor-picker";document.body.appendChild(host);}
+  host.innerHTML=html;
+}
+function closeFloorPicker(){const h=$("#floor-picker");if(h)h.innerHTML="";}
+function setFloor(id){const p=STATE.current;if(!p)return;snapshot();p.floor=id;buildRoom3D();closeFloorPicker();toast("Piso: "+(FLOOR_OPTIONS.find(f=>f.id===id)||{}).n);}
+
 function buildRoom3D(){
   const p=STATE.current;
   if(R.room)R.scene.remove(R.room);
   R.room=new THREE.Group();R.walls={};
-  const floorMat=new THREE.MeshStandardMaterial({color:0xa9adb2,roughness:.85});
+  const fo=FLOOR_OPTIONS.find(f=>f.id===(p.floor||"cinza"))||FLOOR_OPTIONS[0];
+  let floorMat;
+  if(fo.wood){
+    const ftex=getFloorTexture(fo);
+    ftex.repeat.set(Math.max(1,Math.round(p.w/90)),Math.max(1,Math.round(p.d/90)));
+    floorMat=new THREE.MeshStandardMaterial({color:0xffffff,map:ftex,roughness:.62});
+  }else{
+    floorMat=new THREE.MeshStandardMaterial({color:fo.hex,roughness:.85});
+  }
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.d),floorMat);
-  floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;R.room.add(floor);
+  floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;floor.userData.isFloor=true;R.room.add(floor);
+  R.floorMesh=floor;
   const wallMat=new THREE.MeshStandardMaterial({color:0xb5b9bd,roughness:1,transparent:true,opacity:.42,side:THREE.DoubleSide});
   const glassMat=new THREE.MeshStandardMaterial({color:0x8fc3e0,roughness:.08,metalness:.05,transparent:true,opacity:.3,side:THREE.DoubleSide});
   const frameMat=new THREE.MeshStandardMaterial({color:0xb9bfc7,roughness:.7});
@@ -2617,19 +2809,45 @@ function buildCabinetBase(o,mat){
       metalness:mm.type==="pedra"?.1:0,
       transparent:mm.type==="vidro",opacity:mm.type==="vidro"?.45:1});};
   const sel=STATE.selected===o.uid?STATE.selectedPart:null;
-  const hl=new THREE.MeshStandardMaterial({color:0xf0653a,emissive:0xf0653a,emissiveIntensity:.35,roughness:.5});
+  const hl=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x3a6ea5,emissiveIntensity:.12,roughness:.55,metalness:0});
+  // seleção discreta: mantém o material real da peça e adiciona um contorno fininho
+  const outlineIfSel=(mesh,kind,i)=>{
+    if(!(sel&&sel.kind===kind&&sel.index===i))return mesh;
+    const eg=new THREE.EdgesGeometry(mesh.geometry);
+    const ln=new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x2f6fb0,transparent:true,opacity:.9}));
+    mesh.add(ln);
+    return mesh;
+  };
   const isSel=(kind,i)=>sel&&sel.kind===kind&&sel.index===i;
   const P=o.parts||{};
   const pd=(kind,i)=>(P[kind]&&P[kind][i])||{};
   const t=1.8;                          // espessura frontal de porta/gaveta
   const handleMat=new THREE.MeshStandardMaterial({color:0x9a9a9a,metalness:.8,roughness:.3});
 
-  // ----- corpo/caixa (sempre presente) -----
-  const carcassW=o.w, carcassH=o.h, carcassD=o.d;
-  const carcass=new THREE.Mesh(new THREE.BoxGeometry(carcassW,carcassH,carcassD-t-1),
-    (findItem(o.item)||{}).stone && isSel("stone",0)?hl:bodyMat());
-  carcass.position.set(0,carcassH/2,-(t+1)/2);carcass.castShadow=true;carcass.receiveShadow=true;
-  carcass.userData.part=(findItem(o.item)||{}).stone?"stone:0":null;g.add(carcass);
+  // ----- CARCAÇA OCA (fundo + teto + base + 2 laterais, SEM frente) -----
+  // Antes era um bloco sólido: ao abrir a porta aparecia a face frontal desse
+  // bloco, parecendo "outra porta atrás". Agora montamos só as paredes reais do
+  // armário, deixando o interior vazio e visível quando a porta/gaveta abre.
+  const stoneWhole=(findItem(o.item)||{}).stone;
+  const pan=6;                                  // espessura dos painéis do corpo (~18mm em escala)
+  const innerMat=()=>{const mm=findMat(o.mat);const tx=getMatTexture(mm,o);
+    return new THREE.MeshStandardMaterial({color:0xe8e2d6,map:tx,roughness:.8,metalness:0,side:THREE.DoubleSide});};
+  if(stoneWhole){
+    // peça de pedra inteira: mantém laje sólida (não tem interior)
+    const slab=outlineIfSel(new THREE.Mesh(new THREE.BoxGeometry(o.w,o.h,o.d), bodyMat()),"stone",0);
+    slab.position.set(0,o.h/2,0);slab.castShadow=true;slab.receiveShadow=true;
+    slab.userData.part="stone:0";g.add(slab);
+  }else{
+    const cMat=innerMat();
+    const addPanel=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),cMat);
+      m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;};
+    const inH=o.h, inD=o.d;
+    addPanel(o.w,pan,inD, 0, pan/2, 0);                    // base
+    addPanel(o.w,pan,inD, 0, o.h-pan/2, 0);                // teto
+    addPanel(pan,o.h-pan*2,inD, -o.w/2+pan/2, o.h/2, 0);   // lateral esquerda
+    addPanel(pan,o.h-pan*2,inD,  o.w/2-pan/2, o.h/2, 0);   // lateral direita
+    addPanel(o.w-pan*2,o.h-pan*2,pan, 0, o.h/2, -o.d/2+pan/2); // fundo (costas)
+  }
 
   const frontZ=o.d/2;                   // plano das frentes
 
@@ -2639,7 +2857,7 @@ function buildCabinetBase(o,mat){
     for(let i=0;i<o.doors;i++){
       const d=pd("door",i);
       const dw=(d.w||seg)-0.6, dh=(d.h||o.h)-0.6;
-      const face=new THREE.Mesh(new THREE.BoxGeometry(dw,dh,t), isSel("door",i)?hl:bodyMat(d.mat));
+      const face=outlineIfSel(new THREE.Mesh(new THREE.BoxGeometry(dw,dh,t), bodyMat(d.mat)),"door",i);
       // dobradiça: portas pares abrem pra esquerda, ímpares pra direita
       const leftHinge=i%2===0;
       const cx=-o.w/2+seg*(i+0.5);
@@ -2647,27 +2865,43 @@ function buildCabinetBase(o,mat){
       pivot.position.set(cx + (leftHinge?-dw/2:dw/2), (d.h?d.h/2:o.h/2), frontZ);
       face.position.set(leftHinge?dw/2:-dw/2,0,t/2);
       const hh=new THREE.Mesh(new THREE.BoxGeometry(2,Math.min(dh*0.5,40),3),handleMat);
-      hh.position.set(leftHinge?dw-4:-(dw-4),0,t+1.5);face.add(hh);
+      // puxador na borda livre da porta (lado oposto à dobradiça), preso à própria face
+      hh.position.set(leftHinge?(dw/2-4):-(dw/2-4),0,t/2+1.5);face.add(hh);
       pivot.add(face);
       if(d.open)pivot.rotation.y=leftHinge?-Math.PI*0.62:Math.PI*0.62;
       face.userData.part="door:"+i;hh.userData.part="door:"+i;
       face.castShadow=true;g.add(pivot);
     }
   }
-  // ----- GAVETAS -----
+  // ----- GAVETAS (caixa real que desliza pra fora) -----
   if(o.drawers>0){
     const seg=o.h/o.drawers;
+    const boxMat=new THREE.MeshStandardMaterial({color:0xd8cfbd,roughness:.85,side:THREE.DoubleSide});
     for(let i=0;i<o.drawers;i++){
       const d=pd("drawer",i);
       const gw=(d.w||o.w)-1.2, gh=(d.h||seg)*0.82;
       const y=seg*(i+0.5);
-      const front=new THREE.Mesh(new THREE.BoxGeometry(gw,gh,t), isSel("drawer",i)?hl:bodyMat(d.mat));
-      const slide=d.open?18:0;
-      front.position.set(0,y,frontZ+t/2+slide);
+      const boxDepth=o.d-pan-3;               // profundidade da caixa da gaveta
+      const boxH=gh*0.82;                      // altura das laterais da caixa
+      const slide=d.open? Math.min(boxDepth*0.72, o.d*0.6) : 0;  // curso de abertura
+      const grpG=new THREE.Group();
+      grpG.position.set(0,y,slide);           // desliza a gaveta inteira no Z
+      // frente
+      const front=outlineIfSel(new THREE.Mesh(new THREE.BoxGeometry(gw,gh,t), bodyMat(d.mat)),"drawer",i);
+      front.position.set(0,0,frontZ+t/2);front.castShadow=true;
+      front.userData.part="drawer:"+i;grpG.add(front);
       const hh=new THREE.Mesh(new THREE.BoxGeometry(Math.min(gw*0.4,50),2,3),handleMat);
-      hh.position.set(0,0,t+1.5);front.add(hh);
-      front.userData.part="drawer:"+i;hh.userData.part="drawer:"+i;
-      front.castShadow=true;g.add(front);
+      hh.position.set(0,0,frontZ+t+1.5);hh.userData.part="drawer:"+i;grpG.add(hh);
+      // caixa (só precisa aparecer quando abre; montamos sempre, fica oculta atrás da frente quando fechada)
+      const cz0=frontZ - boxDepth/2;          // centro da caixa em Z
+      const bottom=new THREE.Mesh(new THREE.BoxGeometry(gw-3,pan*0.6,boxDepth),boxMat);
+      bottom.position.set(0,-boxH/2,cz0);grpG.add(bottom);
+      const back=new THREE.Mesh(new THREE.BoxGeometry(gw-3,boxH,pan*0.6),boxMat);
+      back.position.set(0,0,cz0-boxDepth/2);grpG.add(back);
+      [-1,1].forEach(sx=>{const sidew=new THREE.Mesh(new THREE.BoxGeometry(pan*0.5,boxH,boxDepth),boxMat);
+        sidew.position.set(sx*(gw/2-2),0,cz0);grpG.add(sidew);});
+      grpG.children.forEach(c=>{if(!c.userData.part)c.userData.part="drawer:"+i;});
+      g.add(grpG);
     }
   }
   // ----- PRATELEIRAS (aparecem quando aberto ou sempre em nichos) -----
@@ -2676,9 +2910,9 @@ function buildCabinetBase(o,mat){
     for(let i=0;i<shelfCount;i++){
       const d=pd("shelf",i);
       const sy=(o.h/(shelfCount+1))*(i+1);
-      const sh=new THREE.Mesh(new THREE.BoxGeometry((d.w||o.w)-4,1.6,o.d-4),
-        isSel("shelf",i)?hl:bodyMat(d.mat));
-      sh.position.set(0,sy,-(t+1)/2);sh.userData.part="shelf:"+i;
+      const sh=outlineIfSel(new THREE.Mesh(new THREE.BoxGeometry((d.w||o.w)-4,1.6,o.d-4),
+        bodyMat(d.mat)),"shelf",i);
+      sh.position.set(0,sy,0);sh.userData.part="shelf:"+i;
       sh.castShadow=true;sh.receiveShadow=true;g.add(sh);
     }
   }
@@ -2704,7 +2938,7 @@ function sinkTop(o,stoneId,wRatio,dRatio,depthRatio,offX){
   const _selP=STATE.selected===o.uid?STATE.selectedPart:null;
   const stoneSel=_selP&&_selP.kind==="stone";
   const cubaSel=_selP&&_selP.kind==="cuba";
-  const _hl=new THREE.MeshStandardMaterial({color:0xf0653a,emissive:0xf0653a,emissiveIntensity:.35,roughness:.4});
+  const _hl=new THREE.MeshStandardMaterial({color:0xd7dade,emissive:0x2f6fb0,emissiveIntensity:.15,metalness:.7,roughness:.3});
   const steel=cubaSel?_hl:new THREE.MeshStandardMaterial({color:0xd7dade,metalness:.85,roughness:.25});
   const basinW=o.w*(wRatio||0.42),basinD=o.d*(dRatio||0.62),basinDepth=Math.max(9,o.h*(depthRatio||0.14));
   const wallT=1.4;
@@ -3102,7 +3336,7 @@ function stoneMaterial(o,mat){
   const tex=getMatTexture(sm,{w:o.w,h:Math.max(o.d,20)});
   return new THREE.MeshStandardMaterial({color:0xffffff,map:tex,roughness:.22,metalness:.16});
 }
-function stoneHL(){return new THREE.MeshStandardMaterial({color:0xf0653a,emissive:0xf0653a,emissiveIntensity:.35,roughness:.4});}
+function stoneHL(){return new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x2f6fb0,emissiveIntensity:.12,roughness:.3,metalness:.15});}
 function isStonePartSel(o){const s=(STATE.selected===o.uid)?STATE.selectedPart:null;return s&&s.kind==="stone";}
 
 /* laje simples (tampo / bancada / soleira) — espessura real 2cm por padrão */
@@ -3222,7 +3456,8 @@ function sync3D(){
   if(STATE.selected&&R.meshes[STATE.selected]){
     const m=R.meshes[STATE.selected];
     m.updateMatrixWorld(true);
-    const box=new THREE.BoxHelper(m,0xf0653a);
+    const box=new THREE.BoxHelper(m,0x6f8fb0);
+    if(box.material){box.material.transparent=true;box.material.opacity=.55;}
     box.userData.helper=true;
     R.scene.add(box);
     R.selectionHelper=box;
