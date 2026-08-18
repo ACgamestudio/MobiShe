@@ -167,6 +167,11 @@ input,select{font-family:inherit}
 .mod-check span{font-size:13.5px}
 .modal-foot{padding:16px 24px 22px;display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);margin-top:4px}
 .ai-box textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:14px;color:var(--ink);font-size:14px;line-height:1.5;resize:vertical;min-height:96px;outline:none}
+.ai-key-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.ai-key-row input{flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;color:var(--ink);font-size:13px;outline:none}
+.ai-key-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.ai-key-status{font-size:12px;color:var(--ink-2);white-space:nowrap}
+.ai-key-hint{font-size:11.5px;color:var(--ink-3);line-height:1.4;margin:0 0 12px}
 .ai-box textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .ai-examples{display:flex;flex-direction:column;gap:7px;margin-top:12px}
 .ai-ex{text-align:left;font-size:12.5px;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;line-height:1.4}
@@ -1050,6 +1055,11 @@ function openAI(){
       <div class="modal-head"><h2>${ICO.spark} Criar com IA</h2>
         <p>Descreva o ambiente que você quer. Os módulos ficam editáveis depois.</p></div>
       <div class="modal-body ai-box">
+        <div class="ai-key-row">
+          <input id="ai-key" type="password" placeholder="${AI_KEY?'Chave do Gemini já carregada nesta sessão':'Cole sua chave do Gemini (opcional)'}" autocomplete="off" spellcheck="false">
+          <span class="ai-key-status" id="ai-key-status">${AI_KEY?'🟢 IA ativa':'⚪ modo local'}</span>
+        </div>
+        <p class="ai-key-hint">A chave fica só na memória desta aba do navegador — não é gravada no arquivo. Feche a aba e ela some. Sem chave, um gerador local simples é usado.</p>
         <textarea id="ai-prompt" placeholder="Ex.: Quero uma cozinha moderna branca e amadeirada, com ilha central, torre para forno e micro-ondas e bastante armazenamento."></textarea>
         <div class="ai-examples">
           <button class="ai-ex" onclick="aiUse(this)">Cozinha moderna branca com ilha central e torre quente</button>
@@ -1058,15 +1068,88 @@ function openAI(){
         </div>
       </div>
       <div class="modal-foot"><button class="btn btn-ghost" onclick="closeOverlays()">Cancelar</button>
-        <button class="btn btn-primary" onclick="aiGenerate()">${ICO.spark} Gerar ambiente</button></div>
+        <button class="btn btn-primary" id="ai-go" onclick="aiGenerate()">${ICO.spark} Gerar ambiente</button></div>
     </div></div>`);
   $("#ai-overlay").onclick=e=>{if(e.target.id==="ai-overlay")closeOverlays();};
 }
 function aiUse(el){$("#ai-prompt").value=el.textContent;}
-function aiGenerate(){
-  const txt=($("#ai-prompt").value||"").toLowerCase();
-  if(!txt.trim()){toast("Descreva o ambiente primeiro");return;}
-  // parser heurístico (MVP local) — a arquitetura permite trocar por chamada real de IA depois
+
+/* chave do Gemini: vive só nesta variável de sessão, nunca é gravada em disco
+   nem no localStorage. Fecha a aba → some. */
+let AI_KEY = "";
+
+async function aiGenerate(){
+  const txt=($("#ai-prompt").value||"").trim();
+  if(!txt){toast("Descreva o ambiente primeiro");return;}
+  const keyField=$("#ai-key"); if(keyField && keyField.value.trim()) AI_KEY=keyField.value.trim();
+  // sem chave → gerador local direto
+  if(!AI_KEY){ aiGenerateLocal(txt); return; }
+  const btn=$("#ai-go"), st=$("#ai-key-status");
+  if(btn){btn.disabled=true;btn.textContent="Gerando…";}
+  if(st){st.textContent="🟡 consultando Gemini…";}
+  try{
+    const pr=await aiGenerateGemini(txt);
+    STATE.projects.unshift(pr);closeOverlays();openProject(pr.id);
+    toast("Gemini gerou seu ambiente — edite à vontade");
+  }catch(err){
+    console.warn("Gemini indisponível, usando gerador local:",err);
+    toast("IA online falhou ("+(err.message||"erro")+") — usei o gerador local");
+    if(btn){btn.disabled=false;btn.textContent="Gerar ambiente";}
+    aiGenerateLocal(txt);
+  }
+}
+
+/* monta a lista de itens válidos que a IA pode usar, com dimensões,
+   para o modelo não inventar peças que não existem */
+function aiCatalogForPrompt(){
+  return ALL_ITEMS.filter(i=>!i.accessory||true).map(i=>
+    `${i.id} (${i.n}; ${i.w}x${i.h}x${i.d}cm)`).join("; ");
+}
+
+async function aiGenerateGemini(txt){
+  const rooms=ROOM_TYPES.map(r=>r.id).join(", ");
+  const mats=MATERIALS.map(m=>`${m.id}(${m.n})`).join(", ");
+  const sys=`Você é um projetista de móveis planejados. A partir da descrição do cliente, devolva SOMENTE um JSON válido (sem markdown, sem texto extra) neste formato exato:
+{"room":"<um de: ${rooms}>","name":"<nome curto do projeto>","w":<largura_cm 200-500>,"d":<profundidade_cm 200-500>,"h":270,"objects":[{"item":"<id do catálogo>","x":<cm de -w/2 a w/2>,"z":<cm de -d/2 a d/2>,"y":<altura base cm, 0 no chão>,"rot":<0,90,180 ou 270>,"mat":"<id de material>"}]}
+Regras: use APENAS os ids de item deste catálogo: ${aiCatalogForPrompt()}. Materiais válidos: ${mats}. Encoste armários nas paredes (z perto de ±(d/2) ou x perto de ±(w/2)) com rot apontando para dentro. Não sobreponha peças. Escolha materiais coerentes com o estilo/cores pedidos. Entre 3 e 8 objetos.`;
+  const body={contents:[{parts:[{text:sys+"\n\nDescrição do cliente: "+txt}]}],
+    generationConfig:{temperature:0.6,responseMimeType:"application/json"}};
+  const url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  const resp=await fetch(url,{method:"POST",
+    headers:{"Content-Type":"application/json","x-goog-api-key":AI_KEY},
+    body:JSON.stringify(body)});
+  if(!resp.ok){const t=await resp.text().catch(()=>"");throw new Error("HTTP "+resp.status+(t?" · "+t.slice(0,120):""));}
+  const data=await resp.json();
+  const raw=(((data.candidates||[])[0]||{}).content||{}).parts?.[0]?.text||"";
+  let spec; try{ spec=JSON.parse(raw.replace(/```json|```/g,"").trim()); }
+  catch(e){ throw new Error("resposta não-JSON"); }
+  return aiSpecToProject(spec);
+}
+
+/* transforma o JSON da IA num projeto válido, filtrando ids inexistentes */
+function aiSpecToProject(spec){
+  const room=(ROOM_TYPES.find(r=>r.id===spec.room)||ROOM_TYPES[0]).id;
+  const w=Math.min(500,Math.max(200,+spec.w||340));
+  const d=Math.min(500,Math.max(200,+spec.d||300));
+  const objs=(Array.isArray(spec.objects)?spec.objects:[]).map(o=>{
+    const it=findItem(o.item); if(!it) return null;
+    const mat=(MATERIALS.find(m=>m.id===o.mat)||{}).id || pickMat(o.item,"Moderno");
+    return {uid:uid(),item:o.item,x:+o.x||0,z:+o.z||0,y:+o.y||0,
+      rot:[0,90,180,270].includes(+o.rot)?+o.rot:0,
+      w:it.w,h:it.h,d:it.d,doors:it.doors,drawers:it.drawers,mat,handle:"perfil"};
+  }).filter(Boolean);
+  if(!objs.length) throw new Error("nenhum item válido retornado");
+  const pr={id:"p"+Date.now(),name:(spec.name||"Projeto IA")+" · "+roomName(room),
+    room,w,d,h:270,style:"Moderno",fav:false,objects:objs,
+    matDefault:STYLE_PALETTES.Moderno.base,openings:[]};
+  // reposiciona quem estiver colidindo/fora, reaproveitando a lógica existente
+  const prev=STATE.current;STATE.current=pr;arrumarAmbiente(pr);STATE.current=prev;
+  return pr;
+}
+
+function aiGenerateLocal(txt){
+  txt=txt.toLowerCase();
+  // parser heurístico (MVP local) — usado quando não há IA online
   let room="cozinha";
   if(/closet|roupeiro|guarda-roupa/.test(txt))room="closet";
   else if(/quarto|suíte|suite|cama/.test(txt))room="quarto";
@@ -1087,7 +1170,7 @@ function aiGenerate(){
   const pr={id:"p"+Date.now(),name:"Projeto IA · "+roomName(room),room,w:340,d:300,h:270,
     style:"Moderno",fav:false,objects:objs,matDefault:matKeyword||STYLE_PALETTES.Moderno.base,openings:[]};
   STATE.projects.unshift(pr);closeOverlays();openProject(pr.id);
-  toast("IA gerou um layout — edite à vontade");
+  toast("Layout gerado localmente — edite à vontade");
 }
 
 function closeOverlays(){$$(".overlay").forEach(o=>o.remove());}
