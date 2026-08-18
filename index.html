@@ -935,20 +935,19 @@ function drawHeroScene(){
   const rn=new THREE.WebGLRenderer({canvas:cv,antialias:true});
   rn.setSize(cv.clientWidth,cv.clientHeight,false);rn.setPixelRatio(Math.min(devicePixelRatio,2));
   rn.shadowMap.enabled=true;
-  scene.add(new THREE.AmbientLight(0xffffff,.6));
-  const dl=new THREE.DirectionalLight(0xffffff,1.05);dl.position.set(220,420,220);dl.castShadow=true;scene.add(dl);
+  scene.add(new THREE.AmbientLight(0xffffff,.46));
+  const dl=new THREE.DirectionalLight(0xffffff,.82);dl.position.set(220,420,220);dl.castShadow=true;scene.add(dl);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(700,700),new THREE.MeshStandardMaterial({color:0x14161c,roughness:.9}));
   floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
 
-  // cozinha completa em miniatura, com as mesmas texturas do editor
+  // quarto completo em miniatura, com as mesmas texturas do editor
   const heroObj=(item,x,y,z,rot,matOverride)=>{const it=findItem(item);
     return {uid:"hero_"+item+"_"+x+"_"+z,item,x,y:y||0,z,rot:rot||0,w:it.w,h:it.h,d:it.d,
       doors:it.doors,drawers:it.drawers,mat:matOverride||pickMat(item,"Moderno")};};
   const heroObjs=[
-    heroObj("mod-pia",-100,0,120,180),heroObj("mod-forno",20,0,135,180),
-    heroObj("aereo",-100,150,135,180),heroObj("aereo",-20,150,135,180),
-    heroObj("ilha",0,0,-20),heroObj("geladeira",110,0,130,180,"branco"),
-    heroObj("cooktop",0,90,-20,0,"branco"),
+    heroObj("cama",-15,0,-35,0),heroObj("criado",90,0,-120,0),
+    heroObj("roupeiro",-90,0,130,180),heroObj("gaveteiro",60,0,135,180),
+    heroObj("nicho",110,120,135,180),
   ];
   /* mesma garantia do editor: nada dentro de outro móvel nem fora do piso,
      inclusive nesta cena 3D girando ao vivo na tela inicial */
@@ -1984,13 +1983,13 @@ let pinch3=null;
 function init3D(){
   const cv=$("#stage3d");if(!cv)return;
   if(!window.THREE){cv.classList.add("hide");return;}
-  R.scene=new THREE.Scene();R.scene.background=new THREE.Color(0xeef0f2);
+  R.scene=new THREE.Scene();R.scene.background=new THREE.Color(0x2a2e34);
   R.cam=new THREE.PerspectiveCamera(50,1,1,6000);
   R.rn=new THREE.WebGLRenderer({canvas:cv,antialias:true});
   R.rn.setPixelRatio(Math.min(devicePixelRatio,2));R.rn.shadowMap.enabled=true;R.rn.shadowMap.type=THREE.PCFSoftShadowMap;
-  R.scene.add(new THREE.AmbientLight(0xffffff,.72));
-  R.scene.add(new THREE.HemisphereLight(0xffffff,0xdfe3e7,.55));
-  const dl=new THREE.DirectionalLight(0xffffff,.95);dl.position.set(300,600,250);dl.castShadow=true;
+  R.scene.add(new THREE.AmbientLight(0xffffff,.54));
+  R.scene.add(new THREE.HemisphereLight(0xffffff,0xdfe3e7,.4));
+  const dl=new THREE.DirectionalLight(0xffffff,.78);dl.position.set(300,600,250);dl.castShadow=true;
   dl.shadow.mapSize.set(2048,2048);dl.shadow.camera.left=-600;dl.shadow.camera.right=600;
   dl.shadow.camera.top=600;dl.shadow.camera.bottom=-600;dl.shadow.camera.far=2000;R.scene.add(dl);
   orbitState.target=new THREE.Vector3(orbitState.target.x,orbitState.target.y,orbitState.target.z);
@@ -2062,10 +2061,10 @@ function buildRoom3D(){
   const p=STATE.current;
   if(R.room)R.scene.remove(R.room);
   R.room=new THREE.Group();R.walls={};
-  const floorMat=new THREE.MeshStandardMaterial({color:0xe4e7ea,roughness:.85});
+  const floorMat=new THREE.MeshStandardMaterial({color:0xa9adb2,roughness:.85});
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.d),floorMat);
   floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;R.room.add(floor);
-  const wallMat=new THREE.MeshStandardMaterial({color:0xf1f3f5,roughness:1,transparent:true,opacity:.42,side:THREE.DoubleSide});
+  const wallMat=new THREE.MeshStandardMaterial({color:0xb5b9bd,roughness:1,transparent:true,opacity:.42,side:THREE.DoubleSide});
   const glassMat=new THREE.MeshStandardMaterial({color:0x8fc3e0,roughness:.08,metalness:.05,transparent:true,opacity:.3,side:THREE.DoubleSide});
   const frameMat=new THREE.MeshStandardMaterial({color:0xb9bfc7,roughness:.7});
   /* cada parede vira um Group próprio para poder ser escondida sozinha
@@ -2100,8 +2099,18 @@ function buildRoom3D(){
     });
     R.walls[wall]=grp;R.room.add(grp);
   });
-  const grid=new THREE.GridHelper(Math.max(p.w,p.d),Math.max(p.w,p.d)/50,0xc3c8ce,0xd8dbdf);
-  grid.position.y=0.5;R.room.add(grid);
+  // grade do piso alinhada exatamente às medidas do cômodo (p.w x p.d)
+  {
+    const step=50, hw=p.w/2, hd=p.d/2, gv=[];
+    for(let x=-hw;x<=hw+0.001;x+=step){const cx=Math.min(x,hw);gv.push(cx,0,-hd,cx,0,hd);}
+    for(let z=-hd;z<=hd+0.001;z+=step){const cz=Math.min(z,hd);gv.push(-hw,0,cz,hw,0,cz);}
+    // garante as linhas de borda exatas
+    gv.push(hw,0,-hd,hw,0,hd, -hw,0,hd,hw,0,hd);
+    const gg=new THREE.BufferGeometry();
+    gg.setAttribute("position",new THREE.Float32BufferAttribute(gv,3));
+    const grid=new THREE.LineSegments(gg,new THREE.LineBasicMaterial({color:0xc3c8ce,transparent:true,opacity:.6}));
+    grid.position.y=0.5;R.room.add(grid);
+  }
   R.scene.add(R.room);
   orbitState.target.set(0,p.h*0.28,0);
   updateWallVisibility();
@@ -3084,3 +3093,4 @@ mountFsToggle();
 </script>
 </body>
 </html>
+
