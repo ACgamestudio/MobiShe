@@ -1121,6 +1121,113 @@ function drawHeroScene(){
 }
 
 /* ============================================================
+   RENDER DO PROJETO — imagem bonita (estilo da vitrine) do ambiente atual.
+   Monta uma cena própria, fora de tela, com iluminação quente e sombras
+   suaves, e devolve um PNG em alta resolução para baixar/compartilhar.
+   ============================================================ */
+function renderProject(){
+  const p=STATE.current;
+  if(!p||!window.THREE){toast("Renderização indisponível");return;}
+  if(!p.objects||!p.objects.length){toast("Adicione móveis ao ambiente primeiro");return;}
+  toast("Renderizando…");
+  // deixa o toast aparecer antes do trabalho pesado
+  setTimeout(()=>{ try{ doRenderProject(p); }catch(e){ toast("Falha ao renderizar"); console.error(e);} },40);
+}
+function doRenderProject(p){
+  const W=1600, H=1100;
+  const cnv=document.createElement("canvas");cnv.width=W;cnv.height=H;
+  const rn=new THREE.WebGLRenderer({canvas:cnv,antialias:true,preserveDrawingBuffer:true});
+  rn.setSize(W,H,false);rn.shadowMap.enabled=true;rn.shadowMap.type=THREE.PCFSoftShadowMap;
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x2b2620);
+  scene.fog=new THREE.Fog(0x2b2620,Math.max(p.w,p.d)*3,Math.max(p.w,p.d)*7);
+
+  // ---- iluminação quente/aconchegante (mesma pegada da vitrine) ----
+  scene.add(new THREE.AmbientLight(0xffe9d2,.5));
+  scene.add(new THREE.HemisphereLight(0xfff2df,0x3a332b,.35));
+  const dl=new THREE.DirectionalLight(0xffe6c4,.85);
+  dl.position.set(p.w*0.6,p.h*2.2,p.d*0.7);dl.castShadow=true;
+  dl.shadow.mapSize.set(2048,2048);
+  const S=Math.max(p.w,p.d);
+  dl.shadow.camera.left=-S;dl.shadow.camera.right=S;dl.shadow.camera.top=S;dl.shadow.camera.bottom=-S;dl.shadow.camera.far=S*6;
+  scene.add(dl);
+  const warm=new THREE.PointLight(0xffcf88,.55,S*2,2);warm.position.set(-p.w*0.3,p.h*0.7,p.d*0.2);scene.add(warm);
+
+  // ---- piso (respeita a cor/vinílico escolhido) ----
+  const fo=(typeof FLOOR_OPTIONS!=="undefined")&&FLOOR_OPTIONS.find(f=>f.id===(p.floor||"cinza"))||{hex:0xa9855c};
+  let floorMat;
+  if(fo.wood){const ft=getFloorTexture(fo);ft.repeat.set(Math.max(1,Math.round(p.w/90)),Math.max(1,Math.round(p.d/90)));
+    floorMat=new THREE.MeshStandardMaterial({color:0xffffff,map:ft,roughness:.65});}
+  else floorMat=new THREE.MeshStandardMaterial({color:fo.hex,roughness:.8});
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.d),floorMat);
+  floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+
+  // ---- paredes (todas as 4, mas as duas viradas p/ a câmera ficam rebaixadas
+  //      p/ não tampar a vista — como num render de catálogo) ----
+  const wallMat=new THREE.MeshStandardMaterial({color:0xcabcae,roughness:.96,side:THREE.DoubleSide});
+  const back=new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h,8),wallMat);back.position.set(0,p.h/2,-p.d/2);back.receiveShadow=true;scene.add(back);
+  const left=new THREE.Mesh(new THREE.BoxGeometry(8,p.h,p.d),wallMat);left.position.set(-p.w/2,p.h/2,0);left.receiveShadow=true;scene.add(left);
+  const skMat=new THREE.MeshStandardMaterial({color:0xe6ddcf,roughness:.7});
+  const sk1=new THREE.Mesh(new THREE.BoxGeometry(p.w,14,3),skMat);sk1.position.set(0,7,-p.d/2+5);scene.add(sk1);
+  const sk2=new THREE.Mesh(new THREE.BoxGeometry(3,14,p.d),skMat);sk2.position.set(-p.w/2+5,7,0);scene.add(sk2);
+
+  // janelas reais do projeto (na parede do fundo / esquerda) como recorte claro
+  (p.openings||[]).forEach(o=>{
+    if(o.type!=="janela")return;
+    const yMid=(o.sill||0)+o.height/2;
+    const pos=wallPlace(o.wall,p,o.pos,yMid);
+    const sky=new THREE.Mesh(new THREE.PlaneGeometry(o.width,o.height),
+      new THREE.MeshStandardMaterial({color:0x2c3f5a,emissive:0x24405f,emissiveIntensity:.5,roughness:1}));
+    sky.position.set(pos.x,pos.y,pos.z);sky.rotation.y=pos.ry;scene.add(sky);
+  });
+
+  // ---- móveis do projeto (mesmos builders do editor) ----
+  const grp=new THREE.Group();
+  p.objects.forEach(o=>{try{grp.add(makeMesh3D(o));}catch(e){}});
+  scene.add(grp);
+
+  // ---- câmera: usa o mesmo ângulo de órbita atual, enquadrando o ambiente ----
+  const cam=new THREE.PerspectiveCamera(46,W/H,1,S*12);
+  const theta=orbitState.theta||0.9, phi=Math.min(1.15,orbitState.phi||1.0);
+  const dist=Math.max(p.w,p.d)*1.35+p.h*0.6;
+  const tgt=new THREE.Vector3(0,p.h*0.32,0);
+  cam.position.set(tgt.x+dist*Math.sin(phi)*Math.sin(theta),
+    tgt.y+dist*Math.cos(phi)*0.9+p.h*0.25,
+    tgt.z+dist*Math.sin(phi)*Math.cos(theta));
+  cam.lookAt(tgt);
+
+  rn.render(scene,cam);
+  const dataURL=cnv.toDataURL("image/png");
+
+  // libera recursos da GPU
+  rn.dispose();
+
+  showRenderModal(dataURL,p);
+}
+function showRenderModal(dataURL,p){
+  const nome=(p.name||"ambiente").replace(/[^\w\-]+/g,"_");
+  const html=`<div class="overlay" onclick="if(event.target===this)closeRenderModal()">
+    <div class="modal" style="max-width:760px">
+      <div class="modal-head" style="padding-bottom:14px">
+        <h2>Render do projeto</h2>
+        <p>${roomName(p.room)} · ${p.w}×${p.d} cm — imagem gerada no navegador.</p>
+      </div>
+      <div style="padding:0 24px 12px">
+        <img src="${dataURL}" alt="Render" style="width:100%;border-radius:12px;border:1px solid var(--line-2);display:block">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;padding:0 24px 22px">
+        <button class="btn" onclick="closeRenderModal()">Fechar</button>
+        <a class="btn btn-primary" href="${dataURL}" download="render_${nome}.png" onclick="setTimeout(closeRenderModal,300)">${ICO.export} Baixar PNG</a>
+      </div>
+    </div></div>`;
+  let host=$("#render-modal");
+  if(!host){host=document.createElement("div");host.id="render-modal";document.body.appendChild(host);}
+  host.innerHTML=html;
+  toast("Render pronto");
+}
+function closeRenderModal(){const h=$("#render-modal");if(h)h.innerHTML="";}
+
+/* ============================================================
    WIZARD (Novo projeto)
    ============================================================ */
 let wizard={step:0,name:"",room:"cozinha",w:320,d:280,h:270,style:"Moderno",mods:[]};
@@ -1364,6 +1471,7 @@ function renderEditor(){
       </div>
       <div class="tb-divider"></div>
       <button class="tb-btn-lg" onclick="organizarAmbiente()" title="Organizar ambiente">${ICO.grid}<span>Organizar</span></button>
+      <button class="tb-btn-lg" onclick="renderProject()" title="Renderizar imagem do projeto">${ICO.image}<span>Renderizar</span></button>
       <button class="tb-btn-lg" onclick="openBudget()">${ICO.tag}<span>Resumo</span></button>
       <button class="tb-btn-lg accent" onclick="openExport()">${ICO.export}<span>Exportar</span></button>
     </div>
@@ -2153,6 +2261,7 @@ function openSheet(){
       <div class="sheet-grid">
         ${b(ICO.undo,"Desfazer","undo()")}
         ${b(ICO.redo,"Refazer","redo()")}
+        ${b(ICO.image,"Renderizar imagem","renderProject()")}
         ${b(ICO.tag,"Resumo do projeto","openBudget()")}
         ${b(ICO.export,"Exportar","openExport()")}
         ${b(ICO.back,"Voltar aos projetos","backHome()","wide")}
