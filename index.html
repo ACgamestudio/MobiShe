@@ -172,16 +172,6 @@ input,select{font-family:inherit}
 .mod-check.on .cbox{background:var(--accent);border-color:var(--accent);color:#fff}
 .mod-check span{font-size:13.5px}
 .modal-foot{padding:16px 24px 22px;display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);margin-top:4px}
-.ai-box textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:14px;color:var(--ink);font-size:14px;line-height:1.5;resize:vertical;min-height:96px;outline:none}
-.ai-key-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-.ai-key-row input{flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;color:var(--ink);font-size:13px;outline:none}
-.ai-key-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.ai-key-status{font-size:12px;color:var(--ink-2);white-space:nowrap}
-.ai-key-hint{font-size:11.5px;color:var(--ink-3);line-height:1.4;margin:0 0 12px}
-.ai-box textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.ai-examples{display:flex;flex-direction:column;gap:7px;margin-top:12px}
-.ai-ex{text-align:left;font-size:12.5px;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;line-height:1.4}
-.ai-ex:hover{border-color:var(--accent);color:var(--ink)}
 
 /* ---------- EDITOR ---------- */
 .editor{height:100dvh;display:flex;flex-direction:column}
@@ -431,6 +421,7 @@ html.fs-fake #app,html.fs-fake .home,html.fs-fake .editor,html.fs-fake .splash{h
    nunca podem ocupar o mesmo espaço de outro (ver detecção de colisão). */
 const CATALOG = {
   "Cozinha":[
+    {id:"arm-cozinha",n:"Armário de cozinha",ico:"🗄️",w:80,h:82,d:58,doors:2,drawers:2,base:720},
     {id:"mod-pia",n:"Módulo pia (com cuba)",ico:"🚰",w:100,h:82,d:58,doors:2,drawers:0,base:680},
     {id:"mod-forno",n:"Torre quente",ico:"🔥",w:60,h:220,d:60,doors:2,drawers:1,base:1600},
     {id:"mod-geladeira",n:"Vão para geladeira",ico:"❄️",w:80,h:210,d:65,doors:0,drawers:0,base:340},
@@ -459,7 +450,6 @@ const CATALOG = {
     {id:"roupeiro",n:"Roupeiro",ico:"🚪",w:120,h:250,d:60,doors:4,drawers:2,base:2400},
     {id:"criado",n:"Criado-mudo",ico:"🛎️",w:45,h:55,d:40,doors:1,drawers:1,base:340},
     {id:"gaveteiro",n:"Gaveteiro",ico:"🗃️",w:50,h:82,d:58,doors:0,drawers:4,base:640},
-    {id:"nicho",n:"Nicho",ico:"⬜",w:40,h:40,d:30,doors:0,drawers:0,base:160},
   ],
   "Sala":[
     {id:"mesa-jantar",n:"Mesa + 4 cadeiras",ico:"🍽️",w:200,h:78,d:160,doors:0,drawers:0,base:2400},
@@ -476,7 +466,6 @@ const CATALOG = {
   "Banheiro":[
     {id:"ban-gab",n:"Gabinete com cuba",ico:"🚿",w:80,h:50,d:45,doors:2,drawers:0,base:580},
     {id:"espelho",n:"Espelho",ico:"🪞",w:60,h:80,d:2,doors:0,drawers:0,base:0,noCost:true,accessory:"espelho",defY:100},
-    {id:"nicho",n:"Nicho",ico:"⬜",w:40,h:40,d:30,doors:0,drawers:0,base:160},
     {id:"vaso-san",n:"Vaso sanitário",ico:"🚽",w:38,h:78,d:66,doors:0,drawers:0,base:0,noCost:true,accessory:"vasosan",defY:0},
     {id:"chuveiro",n:"Chuveiro",ico:"🚿",w:24,h:30,d:24,doors:0,drawers:0,base:0,noCost:true,accessory:"chuveiro",defY:210},
     {id:"box-blindex",n:"Box blindex",ico:"🧼",w:90,h:190,d:90,doors:0,drawers:0,base:0,noCost:true,accessory:"boxblindex",defY:0},
@@ -699,9 +688,15 @@ const QUICK_LAYOUTS = {
     {item:"ilha",x:0,z:-20,rot:0},{item:"cooktop",x:0,z:-20,y:90,rot:0},
   ],
   quarto:[
-    {item:"cama",x:-15,z:-35,rot:0},{item:"criado",x:90,z:-120,rot:0},
-    {item:"roupeiro",x:-90,z:130,rot:180},{item:"gaveteiro",x:60,z:135,rot:180},
-    {item:"nicho",x:110,z:135,y:120,rot:180},
+    // cama de casal com a cabeceira encostada na parede do fundo (-z)
+    {item:"cama",x:-30,z:-65,rot:0},
+    // criados-mudos um de cada lado, FORA da largura da cama
+    {item:"criado",x:-142,z:-148,rot:0},{item:"criado",x:82,z:-148,rot:0},
+    // ROUPEIRO grande de 6 portas encostado na parede DIREITA (+x), virado pra dentro (-x)
+    {item:"roupeiro",x:120,z:20,rot:90,w:270,d:60,doors:6,drawers:0},
+    // gaveteiro na parede da frente + NICHO aberto (vão de micro-ondas) acima
+    {item:"gaveteiro",x:-120,z:120,rot:180},
+    {item:"nicho",x:-120,z:138,y:110,rot:180,w:62,h:40,d:38},
   ],
   sala:[
     {item:"painel",x:0,z:-140,rot:0},{item:"sofa",x:0,z:60,rot:180},
@@ -853,12 +848,13 @@ function cutList(p){
     add("Lateral",2,o.d,o.h);
     add("Base/Tampo",2,o.w,o.d);
     add("Fundo",1,o.w,o.h);
+    const B=cabinetBands(o);
     if(o.doors){const segW=o.w/o.doors;
-      for(let i=0;i<o.doors;i++){const dm=pdim("door",i,segW,o.h);
+      for(let i=0;i<o.doors;i++){const dm=pdim("door",i,segW,B.doorBandH);
         add("Porta "+(i+1),1,dm.w,dm.h,pmat("door",i));}}
-    if(o.drawers){const segH=o.h/o.drawers;
+    if(o.drawers){const segH=B.drawerSeg;
       for(let i=0;i<o.drawers;i++){const dm=pdim("drawer",i,o.w,segH);
-        add("Frente gaveta "+(i+1),1,dm.w,dm.h*0.8,pmat("drawer",i));
+        add("Frente gaveta "+(i+1),1,dm.w,dm.h,pmat("drawer",i));
         add("Caixa gaveta "+(i+1),2,o.d,segH*0.6,pmat("drawer",i));}}
     // prateleiras editadas individualmente
     if(P.shelf){Object.keys(P.shelf).forEach(i=>{const d=P.shelf[i];
@@ -1043,7 +1039,7 @@ function drawHeroScene(){
   const criadoEsq=heroObj("criado",-120-camaW/2-criadoW/2-8,0,criadoZ,0,"du-amendola");
   const criadoDir=heroObj("criado",-120+camaW/2+criadoW/2+8,0,criadoZ,0,"du-amendola");
   // GUARDA-ROUPA 6 portas encostado na parede DIREITA (+x), virado para a cama (-x)
-  const roupObj=heroObj("roupeiro",RW/2- findItem("roupeiro").d/2 -10,0,10,270,"eu-amendoa");
+  const roupObj=heroObj("roupeiro",RW/2- findItem("roupeiro").d/2 -10,0,10,90,"eu-amendoa");
   roupObj.w=270;roupObj.doors=6;roupObj.drawers=0;         // 6 portas
   const heroObjs=[camaObj,criadoEsq,criadoDir,roupObj];
   const grp=new THREE.Group();
@@ -1298,143 +1294,22 @@ function wizBack(){syncWizInputs();wizard.step--;renderWizardReplace();}
 function wizFinish(){
   const objs=(QUICK_LAYOUTS[wizard.room]||[]).filter(q=>wizard.mods.includes(q.item)).map((q,i)=>{
     const it=findItem(q.item);
-    return {uid:uid(),item:q.item,x:q.x,z:q.z,y:q.y||0,rot:q.rot||0,w:it.w,h:it.h,d:it.d,
-      doors:it.doors,drawers:it.drawers,mat:pickMat(q.item,wizard.style),handle:"perfil"};
+    return {uid:uid(),item:q.item,x:q.x,z:q.z,y:q.y||0,rot:q.rot||0,
+      w:q.w||it.w,h:q.h||it.h,d:q.d||it.d,
+      doors:(q.doors!=null?q.doors:it.doors),drawers:(q.drawers!=null?q.drawers:it.drawers),
+      mat:q.mat||pickMat(q.item,wizard.style),handle:"perfil"};
   });
   const pr={id:"p"+Date.now(),name:wizard.name.trim(),room:wizard.room,w:wizard.w,d:wizard.d,h:wizard.h,
     style:wizard.style,fav:false,objects:objs,matDefault:(STYLE_PALETTES[wizard.style]||STYLE_PALETTES.Moderno).base,openings:[]};
   STATE.projects.unshift(pr);closeOverlays();openProject(pr.id);toast("Ambiente criado");
 }
 function matForStyle(s){return {Moderno:"branco",Minimalista:"cinza",Aconchegante:"carv",Industrial:"preto"}[s]||"branco";}
-function quickStart(room){wizard={step:2,name:roomName(room)+" planejada",room,w:320,d:280,h:270,style:"Moderno",mods:(QUICK_LAYOUTS[room]||[]).map(q=>q.item)};wizFinish();}
-
-/* ============================================================
-   CRIAR COM IA
-   ============================================================ */
-function openAI(){
-  $("#app").insertAdjacentHTML("beforeend",`
-   <div class="overlay" id="ai-overlay">
-    <div class="modal">
-      <div class="modal-head"><h2>${ICO.spark} Criar com IA</h2>
-        <p>Descreva o ambiente que você quer. Os módulos ficam editáveis depois.</p></div>
-      <div class="modal-body ai-box">
-        <div class="ai-key-row">
-          <input id="ai-key" type="password" placeholder="${AI_KEY?'Chave do Gemini já carregada nesta sessão':'Cole sua chave do Gemini (opcional)'}" autocomplete="off" spellcheck="false">
-          <span class="ai-key-status" id="ai-key-status">${AI_KEY?'🟢 IA ativa':'⚪ modo local'}</span>
-        </div>
-        <p class="ai-key-hint">A chave fica só na memória desta aba do navegador — não é gravada no arquivo. Feche a aba e ela some. Sem chave, um gerador local simples é usado.</p>
-        <textarea id="ai-prompt" placeholder="Ex.: Quero uma cozinha moderna branca e amadeirada, com ilha central, torre para forno e micro-ondas e bastante armazenamento."></textarea>
-        <div class="ai-examples">
-          <button class="ai-ex" onclick="aiUse(this)">Cozinha moderna branca com ilha central e torre quente</button>
-          <button class="ai-ex" onclick="aiUse(this)">Closet amadeirado com roupeiros dos dois lados e gaveteiro</button>
-          <button class="ai-ex" onclick="aiUse(this)">Home office minimalista cinza com mesa, armário e prateleiras</button>
-        </div>
-      </div>
-      <div class="modal-foot"><button class="btn btn-ghost" onclick="closeOverlays()">Cancelar</button>
-        <button class="btn btn-primary" id="ai-go" onclick="aiGenerate()">${ICO.spark} Gerar ambiente</button></div>
-    </div></div>`);
-  $("#ai-overlay").onclick=e=>{if(e.target.id==="ai-overlay")closeOverlays();};
-}
-function aiUse(el){$("#ai-prompt").value=el.textContent;}
-
-/* chave do Gemini: vive só nesta variável de sessão, nunca é gravada em disco
-   nem no localStorage. Fecha a aba → some. */
-let AI_KEY = "";
-
-async function aiGenerate(){
-  const txt=($("#ai-prompt").value||"").trim();
-  if(!txt){toast("Descreva o ambiente primeiro");return;}
-  const keyField=$("#ai-key"); if(keyField && keyField.value.trim()) AI_KEY=keyField.value.trim();
-  // sem chave → gerador local direto
-  if(!AI_KEY){ aiGenerateLocal(txt); return; }
-  const btn=$("#ai-go"), st=$("#ai-key-status");
-  if(btn){btn.disabled=true;btn.textContent="Gerando…";}
-  if(st){st.textContent="🟡 consultando Gemini…";}
-  try{
-    const pr=await aiGenerateGemini(txt);
-    STATE.projects.unshift(pr);closeOverlays();openProject(pr.id);
-    toast("Gemini gerou seu ambiente — edite à vontade");
-  }catch(err){
-    console.warn("Gemini indisponível, usando gerador local:",err);
-    toast("IA online falhou ("+(err.message||"erro")+") — usei o gerador local");
-    if(btn){btn.disabled=false;btn.textContent="Gerar ambiente";}
-    aiGenerateLocal(txt);
-  }
+function quickStart(room){
+  const dims=({quarto:{w:340,d:340}})[room]||{w:320,d:280};
+  wizard={step:2,name:roomName(room)+" planejada",room,w:dims.w,d:dims.d,h:270,style:"Moderno",mods:(QUICK_LAYOUTS[room]||[]).map(q=>q.item)};
+  wizFinish();
 }
 
-/* monta a lista de itens válidos que a IA pode usar, com dimensões,
-   para o modelo não inventar peças que não existem */
-function aiCatalogForPrompt(){
-  return ALL_ITEMS.filter(i=>!i.accessory||true).map(i=>
-    `${i.id} (${i.n}; ${i.w}x${i.h}x${i.d}cm)`).join("; ");
-}
-
-async function aiGenerateGemini(txt){
-  const rooms=ROOM_TYPES.map(r=>r.id).join(", ");
-  const mats=MATERIALS.map(m=>`${m.id}(${m.n})`).join(", ");
-  const sys=`Você é um projetista de móveis planejados. A partir da descrição do cliente, devolva SOMENTE um JSON válido (sem markdown, sem texto extra) neste formato exato:
-{"room":"<um de: ${rooms}>","name":"<nome curto do projeto>","w":<largura_cm 200-500>,"d":<profundidade_cm 200-500>,"h":270,"objects":[{"item":"<id do catálogo>","x":<cm de -w/2 a w/2>,"z":<cm de -d/2 a d/2>,"y":<altura base cm, 0 no chão>,"rot":<0,90,180 ou 270>,"mat":"<id de material>"}]}
-Regras: use APENAS os ids de item deste catálogo: ${aiCatalogForPrompt()}. Materiais válidos: ${mats}. Encoste armários nas paredes (z perto de ±(d/2) ou x perto de ±(w/2)) com rot apontando para dentro. Não sobreponha peças. Escolha materiais coerentes com o estilo/cores pedidos. Entre 3 e 8 objetos.`;
-  const body={contents:[{parts:[{text:sys+"\n\nDescrição do cliente: "+txt}]}],
-    generationConfig:{temperature:0.6,responseMimeType:"application/json"}};
-  const url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-  const resp=await fetch(url,{method:"POST",
-    headers:{"Content-Type":"application/json","x-goog-api-key":AI_KEY},
-    body:JSON.stringify(body)});
-  if(!resp.ok){const t=await resp.text().catch(()=>"");throw new Error("HTTP "+resp.status+(t?" · "+t.slice(0,120):""));}
-  const data=await resp.json();
-  const raw=(((data.candidates||[])[0]||{}).content||{}).parts?.[0]?.text||"";
-  let spec; try{ spec=JSON.parse(raw.replace(/```json|```/g,"").trim()); }
-  catch(e){ throw new Error("resposta não-JSON"); }
-  return aiSpecToProject(spec);
-}
-
-/* transforma o JSON da IA num projeto válido, filtrando ids inexistentes */
-function aiSpecToProject(spec){
-  const room=(ROOM_TYPES.find(r=>r.id===spec.room)||ROOM_TYPES[0]).id;
-  const w=Math.min(500,Math.max(200,+spec.w||340));
-  const d=Math.min(500,Math.max(200,+spec.d||300));
-  const objs=(Array.isArray(spec.objects)?spec.objects:[]).map(o=>{
-    const it=findItem(o.item); if(!it) return null;
-    const mat=(MATERIALS.find(m=>m.id===o.mat)||{}).id || pickMat(o.item,"Moderno");
-    return {uid:uid(),item:o.item,x:+o.x||0,z:+o.z||0,y:+o.y||0,
-      rot:[0,90,180,270].includes(+o.rot)?+o.rot:0,
-      w:it.w,h:it.h,d:it.d,doors:it.doors,drawers:it.drawers,mat,handle:"perfil"};
-  }).filter(Boolean);
-  if(!objs.length) throw new Error("nenhum item válido retornado");
-  const pr={id:"p"+Date.now(),name:(spec.name||"Projeto IA")+" · "+roomName(room),
-    room,w,d,h:270,style:"Moderno",fav:false,objects:objs,
-    matDefault:STYLE_PALETTES.Moderno.base,openings:[]};
-  // reposiciona quem estiver colidindo/fora, reaproveitando a lógica existente
-  const prev=STATE.current;STATE.current=pr;arrumarAmbiente(pr);STATE.current=prev;
-  return pr;
-}
-
-function aiGenerateLocal(txt){
-  txt=txt.toLowerCase();
-  // parser heurístico (MVP local) — usado quando não há IA online
-  let room="cozinha";
-  if(/closet|roupeiro|guarda-roupa/.test(txt))room="closet";
-  else if(/quarto|suíte|suite|cama/.test(txt))room="quarto";
-  else if(/office|escritório|escritorio|mesa|trabalho/.test(txt))room="escritorio";
-  else if(/sala|estar|tv|rack/.test(txt))room="sala";
-  else if(/lavanderia|máquina|maquina|tanque/.test(txt))room="lavanderia";
-  let matKeyword=null;
-  if(/amadeir|madeira|carvalho|nogueira|freijó|freijo/.test(txt))matKeyword="carv";
-  if(/preto|preta|black/.test(txt))matKeyword="preto";
-  if(/cinza|grafite/.test(txt))matKeyword="cinza";
-  if(/verde/.test(txt))matKeyword="verde";
-  let objs=(QUICK_LAYOUTS[room]||[]).map((q,i)=>{const it=findItem(q.item);
-    const m = matKeyword ? (it.stone?"granito":matKeyword) : pickMat(q.item,"Moderno");
-    return {uid:uid(),item:q.item,x:q.x,z:q.z,y:q.y||0,rot:q.rot||0,w:it.w,h:it.h,d:it.d,
-      doors:it.doors,drawers:it.drawers,mat:m,handle:"perfil"};});
-  if(/ilha/.test(txt)&&!objs.find(o=>o.item==="ilha")){const it=findItem("ilha");
-    objs.push({uid:uid(),item:"ilha",x:0,z:-20,y:0,rot:0,w:it.w,h:it.h,d:it.d,doors:it.doors,drawers:it.drawers,mat:"granito",handle:"perfil"});}
-  const pr={id:"p"+Date.now(),name:"Projeto IA · "+roomName(room),room,w:340,d:300,h:270,
-    style:"Moderno",fav:false,objects:objs,matDefault:matKeyword||STYLE_PALETTES.Moderno.base,openings:[]};
-  STATE.projects.unshift(pr);closeOverlays();openProject(pr.id);
-  toast("Layout gerado localmente — edite à vontade");
-}
 
 function closeOverlays(){$$(".overlay").forEach(o=>o.remove());}
 
@@ -1554,7 +1429,7 @@ function renderLeft(){
       </select>
       <div class="cat-title">Tipo de acabamento</div>
       <div class="style-row" style="margin-bottom:14px">${filters.map(f=>`<button class="chip ${STATE.matFilter===f?'on':''}" onclick="setMatFilter('${f}')" style="padding:6px 11px;font-size:12px">${f[0].toUpperCase()+f.slice(1)}</button>`).join("")}</div>
-      ${STATE.selected?`<div class="mat-hint">Aplica ao m\u00f3dulo selecionado</div>`:`<div class="mat-hint">Define o material padr\u00e3o do projeto</div>`}
+      ${STATE.selected&&STATE.selectedPart?`<div class="mat-hint">Aplica \u00e0 pe\u00e7a selecionada</div>`:STATE.selected?`<div class="mat-hint">Aplica ao m\u00f3dulo selecionado</div>`:`<div class="mat-hint">Define o material padr\u00e3o do projeto</div>`}
       ${brandsShown.map(b=>{
         const list=MATERIALS.filter(m=>m.b===b.id&&inFilter(m));
         return `<div class="brand-block">
@@ -1744,10 +1619,22 @@ function deleteOpening(){const o=getSelOpening();if(!o)return;snapshot();
   STATE.selectedOpening=null;refreshEditor();renderRight();renderLeft();toast("Abertura removida");}
 function setMatFilter(f){STATE.matFilter=f;renderLeft();}
 function setMatBrand(b){STATE.matBrand=b;renderLeft();}
-function matSelNow(){const o=STATE.selected?getSel():null;return o?o.mat:(STATE.current&&STATE.current.matDefault);}
+function matSelNow(){
+  if(STATE.selected && STATE.selectedPart){const s=getSelPart();if(s&&s.data.mat)return s.data.mat;}
+  const o=STATE.selected?getSel():null;return o?o.mat:(STATE.current&&STATE.current.matDefault);
+}
 function applyMat(mid){
-  if(!STATE.selected){STATE.current.matDefault=mid;toast("Material padrão: "+findMat(mid).n);renderLeft();return;}
-  snapshot();const o=getSel();o.mat=mid;refreshEditor();renderRight();toast("Material aplicado");
+  // 1) peça selecionada (porta, gaveta, tampo de pedra, prateleira, cuba) → aplica só nela
+  if(STATE.selected && STATE.selectedPart){
+    const s=getSelPart();
+    if(s){snapshot();s.data.mat=mid;refreshEditor();renderRight();renderLeft();toast("Material aplicado à peça: "+findMat(mid).n);return;}
+  }
+  // 2) módulo selecionado → aplica no módulo inteiro
+  if(STATE.selected){
+    snapshot();const o=getSel();o.mat=mid;refreshEditor();renderRight();renderLeft();toast("Material aplicado");return;
+  }
+  // 3) nada selecionado → define o padrão do projeto
+  STATE.current.matDefault=mid;toast("Material padrão: "+findMat(mid).n);renderLeft();
 }
 
 /* ============================================================
@@ -1995,11 +1882,12 @@ function renderRight(){
     const sp=getSelPart();
     if(sp){
       const LABEL={door:"Porta",drawer:"Gaveta",stone:"Tampo de pedra",shelf:"Prateleira",cuba:"Cuba"};
+      const _B=cabinetBands(o);
       const seg = sp.kind==="door" ? o.w/Math.max(o.doors,1)
-                : sp.kind==="drawer" ? o.h/Math.max(o.drawers,1)
+                : sp.kind==="drawer" ? _B.drawerSeg
                 : null;
       const defW = sp.kind==="drawer" ? o.w : (seg||o.w);
-      const defH = sp.kind==="door" ? o.h : (seg||o.h);
+      const defH = sp.kind==="door" ? _B.doorBandH : (sp.kind==="drawer" ? _B.drawerSeg : o.h);
       const curW = sp.data.w || Math.round(defW);
       const curH = sp.data.h || Math.round(defH);
       const curMat = sp.data.mat || o.mat;
@@ -2910,6 +2798,24 @@ const ACCESSORY_BUILDERS={maqlavar:buildMaqLavar,secadora:buildSecadora,fogao:bu
   geladeira:buildGeladeira,tv:buildTV,quadro:buildQuadro,planta:buildPlanta,
   vasosan:buildVasoSan,chuveiro:buildChuveiro,boxblindex:buildBoxBlindex};
 
+/* Calcula as FAIXAS da frente de um módulo: onde ficam as gavetas (embaixo)
+   e onde ficam as portas (em cima). Usado tanto pelo desenho 3D quanto pela
+   lista de corte, para que as duas coisas fiquem sempre coerentes. */
+function cabinetBands(o){
+  const pan=6;
+  const nDoors=o.doors|0, nDraw=o.drawers|0;
+  const usableH=o.h-pan*2;
+  let drawerBandH=0;
+  if(nDraw>0){
+    const ideal=nDraw*22;
+    drawerBandH=Math.min(ideal, usableH*(nDoors>0?0.45:1), usableH);
+  }
+  const doorBandBottom = pan + (nDraw>0?drawerBandH:0);
+  const doorBandH = (o.h-pan) - doorBandBottom;
+  return {pan,nDoors,nDraw,usableH,drawerBandH,doorBandBottom,doorBandH,
+    drawerSeg: nDraw>0?drawerBandH/nDraw:0};
+}
+
 /* ---- corpo genérico de armário (caixa + portas + gavetas) — usado como
    "casco" por vários módulos e como fallback para os itens simples ---- */
 function buildCabinetBase(o,mat){
@@ -2963,36 +2869,65 @@ function buildCabinetBase(o,mat){
 
   const frontZ=o.d/2;                   // plano das frentes
 
-  // ----- PORTAS -----
-  if(o.doors>0){
-    const seg=o.w/o.doors;
-    for(let i=0;i<o.doors;i++){
+  // ============================================================
+  //  LAYOUT DA FRENTE — portas e gavetas NUNCA se sobrepõem.
+  //  Quando o módulo tem gavetas, elas ocupam uma FAIXA INFERIOR e as
+  //  portas ficam na faixa de cima. Assim um roupeiro 4 portas + 2 gavetas
+  //  fica com as 2 gavetas embaixo e as 4 portas acima delas, como um
+  //  móvel planejado de verdade — em vez de porta e gaveta desenhadas
+  //  no mesmo lugar.
+  // ============================================================
+  const nDoors=o.doors|0, nDraw=o.drawers|0;
+  const gap=0.6;                          // folga entre frentes
+  const bands=cabinetBands(o);
+  const usableH=bands.usableH;            // altura interna (entre base e teto)
+  const drawerBandH=bands.drawerBandH;    // faixa das gavetas
+  const doorBandBottom=bands.doorBandBottom;   // onde as portas começam
+  const doorBandH=bands.doorBandH;             // altura disponível p/ portas
+
+  // ----- PORTAS (faixa superior) -----
+  if(nDoors>0 && doorBandH>4){
+    const seg=o.w/nDoors;
+    const bandCenterY=doorBandBottom + doorBandH/2;
+    for(let i=0;i<nDoors;i++){
       const d=pd("door",i);
-      const dw=(d.w||seg)-0.6, dh=(d.h||o.h)-0.6;
+      const dw=(d.w||seg)-gap, dh=(d.h||doorBandH)-gap;
       const face=outlineIfSel(new THREE.Mesh(new THREE.BoxGeometry(dw,dh,t), bodyMat(d.mat)),"door",i);
       // dobradiça: portas pares abrem pra esquerda, ímpares pra direita
       const leftHinge=i%2===0;
       const cx=-o.w/2+seg*(i+0.5);
       const pivot=new THREE.Group();
-      pivot.position.set(cx + (leftHinge?-dw/2:dw/2), (d.h?d.h/2:o.h/2), frontZ);
+      // a porta pivota na sua lateral, na altura do centro da faixa de portas
+      pivot.position.set(cx + (leftHinge?-dw/2:dw/2), (d.h?doorBandBottom+d.h/2:bandCenterY), frontZ);
       face.position.set(leftHinge?dw/2:-dw/2,0,t/2);
       const hh=new THREE.Mesh(new THREE.BoxGeometry(2,Math.min(dh*0.5,40),3),handleMat);
-      // puxador na borda livre da porta (lado oposto à dobradiça), preso à própria face
-      hh.position.set(leftHinge?(dw/2-4):-(dw/2-4),0,t/2+1.5);face.add(hh);
+      // puxador na borda livre da porta (lado oposto à dobradiça), preso à própria face,
+      // e mais para baixo quando a porta é alta (mão alcança)
+      const handleY=Math.min(0, -(dh/2)+Math.min(dh*0.5,55));
+      hh.position.set(leftHinge?(dw/2-4):-(dw/2-4),handleY,t/2+1.5);face.add(hh);
       pivot.add(face);
       if(d.open)pivot.rotation.y=leftHinge?-Math.PI*0.62:Math.PI*0.62;
       face.userData.part="door:"+i;hh.userData.part="door:"+i;
       face.castShadow=true;g.add(pivot);
     }
   }
-  // ----- GAVETAS (caixa real que desliza pra fora) -----
-  if(o.drawers>0){
-    const seg=o.h/o.drawers;
+
+  // ----- TRAVESSA separando gavetas das portas (só quando há os dois) -----
+  if(nDoors>0 && nDraw>0){
+    const railMat=innerMat();
+    const rail=new THREE.Mesh(new THREE.BoxGeometry(o.w-pan*2, pan*0.8, o.d-pan-2), railMat);
+    rail.position.set(0, pan+drawerBandH, 0);rail.castShadow=true;g.add(rail);
+  }
+
+  // ----- GAVETAS (faixa inferior; caixa real que desliza pra fora) -----
+  if(nDraw>0 && drawerBandH>3){
+    const seg=drawerBandH/nDraw;             // altura de cada gaveta na faixa
     const boxMat=new THREE.MeshStandardMaterial({color:0xd8cfbd,roughness:.85,side:THREE.DoubleSide});
-    for(let i=0;i<o.drawers;i++){
+    for(let i=0;i<nDraw;i++){
       const d=pd("drawer",i);
-      const gw=(d.w||o.w)-1.2, gh=(d.h||seg)*0.82;
-      const y=seg*(i+0.5);
+      const gw=(d.w||o.w)-1.2, gh=(d.h||seg)-gap;
+      // gaveta 0 embaixo, empilhando para cima dentro da faixa inferior
+      const y=pan + seg*(i+0.5);
       const boxDepth=o.d-pan-3;               // profundidade da caixa da gaveta
       const boxH=gh*0.82;                      // altura das laterais da caixa
       const slide=d.open? Math.min(boxDepth*0.72, o.d*0.6) : 0;  // curso de abertura
@@ -3003,8 +2938,8 @@ function buildCabinetBase(o,mat){
       front.position.set(0,0,frontZ+t/2);front.castShadow=true;
       front.userData.part="drawer:"+i;grpG.add(front);
       const hh=new THREE.Mesh(new THREE.BoxGeometry(Math.min(gw*0.4,50),2,3),handleMat);
-      hh.position.set(0,0,frontZ+t+1.5);hh.userData.part="drawer:"+i;grpG.add(hh);
-      // caixa (só precisa aparecer quando abre; montamos sempre, fica oculta atrás da frente quando fechada)
+      hh.position.set(0,gh*0.28,frontZ+t+1.5);hh.userData.part="drawer:"+i;grpG.add(hh);
+      // caixa (aparece quando abre; oculta atrás da frente quando fechada)
       const cz0=frontZ - boxDepth/2;          // centro da caixa em Z
       const bottom=new THREE.Mesh(new THREE.BoxGeometry(gw-3,pan*0.6,boxDepth),boxMat);
       bottom.position.set(0,-boxH/2,cz0);grpG.add(bottom);
@@ -3016,15 +2951,19 @@ function buildCabinetBase(o,mat){
       g.add(grpG);
     }
   }
-  // ----- PRATELEIRAS (aparecem quando aberto ou sempre em nichos) -----
-  const shelfCount=Math.max(0, Math.round((o.h/40))-1);
-  if(o.doors>0 || o.item==="nicho"){
-    for(let i=0;i<shelfCount;i++){
-      const d=pd("shelf",i);
-      const sy=(o.h/(shelfCount+1))*(i+1);
-      const sh=outlineIfSel(new THREE.Mesh(new THREE.BoxGeometry((d.w||o.w)-4,1.6,o.d-4),
-        bodyMat(d.mat)),"shelf",i);
-      sh.position.set(0,sy,0);sh.userData.part="shelf:"+i;
+
+  // ----- PRATELEIRAS internas (só na faixa das portas, ou sempre em nichos) -----
+  if((nDoors>0 && doorBandH>50) || o.item==="nicho"){
+    const bandBottom = o.item==="nicho"? pan : doorBandBottom;
+    const bandTop = o.h-pan;
+    const bandH = bandTop-bandBottom;
+    const shelfCount=Math.max(1, Math.round(bandH/45)-1);
+    for(let i=1;i<=shelfCount;i++){
+      const d=pd("shelf",i-1);
+      const sy=bandBottom + (bandH/(shelfCount+1))*i;
+      const sh=outlineIfSel(new THREE.Mesh(new THREE.BoxGeometry((d.w||o.w)-pan*2,1.6,o.d-pan-2),
+        bodyMat(d.mat)),"shelf",i-1);
+      sh.position.set(0,sy,0);sh.userData.part="shelf:"+(i-1);
       sh.castShadow=true;sh.receiveShadow=true;g.add(sh);
     }
   }
@@ -3043,7 +2982,13 @@ function mountedFaucet(h,d,x,y,z){
    escondendo-a dentro do móvel. */
 function sinkTop(o,stoneId,wRatio,dRatio,depthRatio,offX){
   const g=new THREE.Group();
-  const stoneMat=findMat(stoneId||"granito");
+  // material da pedra: prioriza o que o usuário editou na peça "stone",
+  // depois o material do módulo (se for pedra), e só então o padrão do builder.
+  const P=o.parts||{};
+  const stonePartMat=P.stone&&P.stone[0]&&P.stone[0].mat;
+  const modIsStone=o.mat&&findMat(o.mat).type==="pedra";
+  const chosenStone = stonePartMat || (modIsStone?o.mat:null) || stoneId || "granito";
+  const stoneMat=findMat(chosenStone);
   const topThick=Math.max(3,o.h*0.035);
   const topTex=getMatTexture(stoneMat,{w:o.w,h:6});
   const topMesh=new THREE.MeshStandardMaterial({color:0xffffff,map:topTex,roughness:.25,metalness:.15});
@@ -3114,6 +3059,37 @@ function buildVaoGeladeira(o,mat){
   base.position.set(0,t/2,0);g.add(base);
   const header=new THREE.Mesh(new THREE.BoxGeometry(o.w,12,o.d),panelMat);
   header.position.set(0,o.h-6,0);header.castShadow=true;g.add(header);
+  return g;
+}
+/* NICHO: cubby ABERTO de verdade — moldura (base+teto+2 laterais+fundo) com a
+   frente vazia e uma prateleira no meio, deixando um vão real para colocar
+   micro-ondas, livros, objetos. Antes o nicho usava o corpo de armário e às
+   vezes parecia um cubo fechado quando encostado na parede. */
+function buildNicho(o,mat){
+  const g=new THREE.Group();
+  const tex=getMatTexture(mat,o);
+  const panelMat=new THREE.MeshStandardMaterial({color:0xffffff,map:tex,roughness:.6,side:THREE.DoubleSide});
+  const innerMat=new THREE.MeshStandardMaterial({color:0xe8e2d6,map:tex,roughness:.85,side:THREE.DoubleSide});
+  const t=Math.max(1.6, o.d*0.06);            // espessura dos painéis
+  // laterais
+  const left=new THREE.Mesh(new THREE.BoxGeometry(t,o.h,o.d),panelMat);
+  left.position.set(-o.w/2+t/2,o.h/2,0);left.castShadow=true;left.receiveShadow=true;g.add(left);
+  const right=left.clone();right.position.x=o.w/2-t/2;g.add(right);
+  // fundo (costas) — recuado, deixa o interior visível pela frente aberta
+  const back=new THREE.Mesh(new THREE.BoxGeometry(o.w,o.h,t),innerMat);
+  back.position.set(0,o.h/2,-o.d/2+t/2);back.receiveShadow=true;g.add(back);
+  // base e teto
+  const base=new THREE.Mesh(new THREE.BoxGeometry(o.w,t,o.d),panelMat);
+  base.position.set(0,t/2,0);base.receiveShadow=true;g.add(base);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(o.w,t,o.d),panelMat);
+  top.position.set(0,o.h-t/2,0);top.castShadow=true;g.add(top);
+  // prateleira(s) internas — 1 no meio para nichos baixos, 2 para altos
+  const shelves = o.h>70 ? 2 : 1;
+  for(let i=1;i<=shelves;i++){
+    const sy=(o.h/(shelves+1))*i;
+    const sh=new THREE.Mesh(new THREE.BoxGeometry(o.w-2*t,t*0.8,o.d-t-2),innerMat);
+    sh.position.set(0,sy,t/2);sh.castShadow=true;sh.receiveShadow=true;g.add(sh);
+  }
   return g;
 }
 /* módulo tanque: armário + cuba funda de lavanderia + escorredor + torneira */
@@ -3533,6 +3509,7 @@ const MODULE_BUILDERS={
   "cama-solteiro":buildCama,
   "cama-queen":buildCama,
   sofa:buildSofa,
+  nicho:buildNicho,
 };
 function makeMesh3D(o){
   const it=findItem(o.item);const mat=findMat(o.mat);
